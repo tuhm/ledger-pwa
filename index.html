@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Ledger</title>
+
+<!-- iOS PWA meta -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ledger">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="theme-color" content="#111318">
+
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== CALENDAR SCREEN ===== -->
+  <section id="screen-calendar" class="screen">
+    <header class="topbar">
+      <div class="month-nav">
+        <button id="btn-prev-month" class="icon-btn" aria-label="Previous month">‹</button>
+        <h1 id="month-label">September 2026</h1>
+        <button id="btn-next-month" class="icon-btn" aria-label="Next month">›</button>
+      </div>
+      <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
+    </header>
+
+    <div class="month-summary" id="month-summary">
+      <div class="summary-item income"><span class="summary-label">Income</span><span id="summary-income">₩0</span></div>
+      <div class="summary-item expense"><span class="summary-label">Expense</span><span id="summary-expense">₩0</span></div>
+      <div class="summary-item net"><span class="summary-label">Net</span><span id="summary-net">₩0</span></div>
+    </div>
+
+    <div class="weekday-row">
+      <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+    </div>
+
+    <div id="calendar-grid" class="calendar-grid"></div>
+
+    <div id="day-panel" class="day-panel">
+      <div class="day-panel-header">
+        <h2 id="day-panel-title">Select a day</h2>
+        <button id="btn-add-for-day" class="text-btn">+ Add</button>
+      </div>
+      <ul id="day-entry-list" class="entry-list"></ul>
+    </div>
+  </section>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="screen-calendar">
+      <span class="nav-icon">📅</span><span>Calendar</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-settings">
+      <span class="nav-icon">⚙️</span><span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- ===== SETTINGS SCREEN ===== -->
+  <section id="screen-settings" class="screen hidden">
+    <header class="topbar">
+      <h1>Settings</h1>
+    </header>
+
+    <div class="settings-section">
+      <h3>Expense Categories</h3>
+      <ul id="expense-category-list" class="category-list"></ul>
+      <form id="form-add-expense-category" class="add-category-form">
+        <input type="text" placeholder="New expense category" required maxlength="20">
+        <button type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="settings-section">
+      <h3>Income Categories</h3>
+      <ul id="income-category-list" class="category-list"></ul>
+      <form id="form-add-income-category" class="add-category-form">
+        <input type="text" placeholder="New income category" required maxlength="20">
+        <button type="submit">Add</button>
+      </form>
+    </div>
+
+    <div class="settings-section">
+      <h3>Data</h3>
+      <button id="btn-export" class="secondary-btn">Export data (JSON)</button>
+      <button id="btn-import" class="secondary-btn">Import data (JSON)</button>
+      <input type="file" id="import-file-input" accept="application/json" style="display:none">
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== ENTRY MODAL ===== -->
+<div id="entry-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <button id="btn-modal-cancel" class="text-btn">Cancel</button>
+      <h2 id="modal-title">New Entry</h2>
+      <button id="btn-modal-delete" class="text-btn danger hidden">Delete</button>
+    </div>
+
+    <form id="entry-form">
+      <div class="type-toggle">
+        <button type="button" class="type-btn active" data-type="expense">Expense</button>
+        <button type="button" class="type-btn" data-type="income">Income</button>
+      </div>
+
+      <label class="field">
+        <span>Date</span>
+        <input type="date" id="input-date" required>
+      </label>
+
+      <label class="field">
+        <span>Category</span>
+        <select id="input-category" required></select>
+      </label>
+
+      <label class="field">
+        <span>Amount (₩)</span>
+        <input type="number" id="input-amount" inputmode="numeric" min="0" step="1" placeholder="0" required>
+      </label>
+
+      <div class="field">
+        <span>Payment</span>
+        <div class="method-toggle">
+          <button type="button" class="method-btn active" data-method="cash">💵 Cash</button>
+          <button type="button" class="method-btn" data-method="card">💳 Card</button>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Memo (optional)</span>
+        <input type="text" id="input-memo" maxlength="60" placeholder="e.g. lunch with team">
+      </label>
+
+      <button type="submit" class="primary-btn">Save</button>
+    </form>
+  </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
