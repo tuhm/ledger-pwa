@@ -34,8 +34,10 @@
     dayPanelTitle: document.getElementById('day-panel-title'),
     dayEntryList: document.getElementById('day-entry-list'),
     summaryIncome: document.getElementById('summary-income'),
-    summaryExpense: document.getElementById('summary-expense'),
+    summaryCashExpense: document.getElementById('summary-cash-expense'),
+    summaryCardExpense: document.getElementById('summary-card-expense'),
     summaryNet: document.getElementById('summary-net'),
+    summaryDateLabel: document.getElementById('summary-date-label'),
 
     navBtns: document.querySelectorAll('.nav-btn'),
     screens: document.querySelectorAll('.screen'),
@@ -120,23 +122,34 @@
         state.selectedDate = ds;
         renderCalendar();
         renderDayPanel();
+        renderDaySummary();
       });
 
       el.calendarGrid.appendChild(cell);
     }
-
-    renderMonthSummary(entries);
   }
 
-  function renderMonthSummary(entries) {
-    let income = 0, expense = 0;
+  function renderDaySummary() {
+    const entries = Storage.getEntriesForDate(state.selectedDate);
+    let income = 0, cashExpense = 0, cardExpense = 0;
     entries.forEach(e => {
-      if (e.type === 'income') income += Number(e.amount);
-      else expense += Number(e.amount);
+      if (e.type === 'income') {
+        income += Number(e.amount);
+      } else if (e.method === 'cash') {
+        cashExpense += Number(e.amount);
+      } else {
+        cardExpense += Number(e.amount);
+      }
     });
     el.summaryIncome.textContent = formatKRW(income);
-    el.summaryExpense.textContent = formatKRW(expense);
-    el.summaryNet.textContent = formatKRW(income - expense);
+    el.summaryCashExpense.textContent = formatKRW(cashExpense);
+    el.summaryCardExpense.textContent = formatKRW(cardExpense);
+    el.summaryNet.textContent = formatKRW(income - cashExpense);
+
+    const d = new Date(state.selectedDate + 'T00:00:00');
+    el.summaryDateLabel.textContent = state.selectedDate === todayStr()
+      ? 'today'
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   // ---------- Day panel ----------
@@ -246,6 +259,7 @@
       closeModal();
       renderCalendar();
       renderDayPanel();
+      renderDaySummary();
     }
   });
 
@@ -274,21 +288,32 @@
     closeModal();
     renderCalendar();
     renderDayPanel();
+    renderDaySummary();
   });
 
   el.btnAdd.addEventListener('click', () => openModal(state.selectedDate || todayStr()));
   el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate));
 
   // ---------- Month navigation ----------
+  function selectFirstOfMonth() {
+    state.selectedDate = dateStr(state.year, state.month, 1);
+  }
+
   el.btnPrevMonth.addEventListener('click', () => {
     state.month -= 1;
     if (state.month < 0) { state.month = 11; state.year -= 1; }
+    selectFirstOfMonth();
     renderCalendar();
+    renderDayPanel();
+    renderDaySummary();
   });
   el.btnNextMonth.addEventListener('click', () => {
     state.month += 1;
     if (state.month > 11) { state.month = 0; state.year += 1; }
+    selectFirstOfMonth();
     renderCalendar();
+    renderDayPanel();
+    renderDaySummary();
   });
 
   // ---------- Bottom nav ----------
@@ -375,6 +400,7 @@
         renderSettings();
         renderCalendar();
         renderDayPanel();
+        renderDaySummary();
       } catch (e) {
         alert('Import failed: ' + e.message);
       }
@@ -393,4 +419,5 @@
   // ---------- Init ----------
   renderCalendar();
   renderDayPanel();
+  renderDaySummary();
 })();

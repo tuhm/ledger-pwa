@@ -8,6 +8,7 @@
   --accent: #4f8cff;
   --income: #3ecf8e;
   --expense: #ff6b6b;
+  --card-expense: #ffb84f;
   --radius: 14px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -88,14 +89,14 @@ html, body {
   right: 12px;
 }
 
-/* ---------- Month summary ---------- */
-.month-summary {
-  display: flex;
+/* ---------- Day summary ---------- */
+.day-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 0 12px 10px;
+  padding: 0 12px;
 }
 .summary-item {
-  flex: 1;
   background: var(--panel);
   border-radius: var(--radius);
   padding: 8px 10px;
@@ -106,7 +107,15 @@ html, body {
 .summary-label { font-size: 11px; color: var(--text-dim); }
 .summary-item span:last-child { font-size: 14px; font-weight: 700; }
 .summary-item.income span:last-child { color: var(--income); }
-.summary-item.expense span:last-child { color: var(--expense); }
+.summary-item.cash-expense span:last-child { color: var(--expense); }
+.summary-item.card-expense span:last-child { color: var(--card-expense); }
+
+.summary-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 6px 12px 10px;
+}
 
 /* ---------- Calendar ---------- */
 .weekday-row {

@@ -30,11 +30,13 @@
       <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
     </header>
 
-    <div class="month-summary" id="month-summary">
+    <div class="day-summary" id="day-summary">
       <div class="summary-item income"><span class="summary-label">Income</span><span id="summary-income">₩0</span></div>
-      <div class="summary-item expense"><span class="summary-label">Expense</span><span id="summary-expense">₩0</span></div>
+      <div class="summary-item cash-expense"><span class="summary-label">Cash Exp</span><span id="summary-cash-expense">₩0</span></div>
+      <div class="summary-item card-expense"><span class="summary-label">Card Exp</span><span id="summary-card-expense">₩0</span></div>
       <div class="summary-item net"><span class="summary-label">Net</span><span id="summary-net">₩0</span></div>
     </div>
+    <div class="summary-hint">Net = Income − Cash Expense (for <span id="summary-date-label">today</span>)</div>
 
     <div class="weekday-row">
       <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
