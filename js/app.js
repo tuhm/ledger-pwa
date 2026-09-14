@@ -161,12 +161,13 @@
     el.summaryCardExpense.textContent = formatKRW(cardExpense);
 
     // Balance: true running total (income − cash expense) across ALL entries,
-    // all-time, through the selected day — carries forward across months.
-    // Defaults to today (current month) or month-end (past/future month) when
-    // no specific day has been picked.
+    // all-time, through the LAST DAY of the displayed month — carries forward
+    // across months, but stays fixed for every day within the same month
+    // (only changes when you navigate to a different month).
+    const monthEndDate = dateStr(state.year, state.month, lastDayOfMonth(state.year, state.month));
     let balanceIncome = 0, balanceCashExpense = 0;
     Storage.getEntries().forEach(e => {
-      if (e.date > state.selectedDate) return;
+      if (e.date > monthEndDate) return;
       if (e.type === 'income') balanceIncome += Number(e.amount);
       else if (e.method === 'cash') balanceCashExpense += Number(e.amount);
     });
