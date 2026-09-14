@@ -20,31 +20,34 @@
 <div id="app">
 
   <!-- ===== CALENDAR SCREEN ===== -->
-  <section id="screen-calendar" class="screen">
-    <header class="topbar">
-      <div class="month-nav">
-        <button id="btn-prev-month" class="icon-btn" aria-label="Previous month">‹</button>
-        <h1 id="month-label">September 2026</h1>
-        <button id="btn-next-month" class="icon-btn" aria-label="Next month">›</button>
+  <section id="screen-calendar" class="screen screen-calendar">
+
+    <div class="panel panel-summary">
+      <header class="topbar">
+        <div class="month-nav">
+          <button id="btn-prev-month" class="icon-btn" aria-label="Previous month">‹</button>
+          <h1 id="month-label">September 2026</h1>
+          <button id="btn-next-month" class="icon-btn" aria-label="Next month">›</button>
+        </div>
+        <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
+      </header>
+
+      <div class="day-summary" id="day-summary">
+        <div class="summary-item income"><span class="summary-label">Income</span><span id="summary-income">₩0</span></div>
+        <div class="summary-item cash-expense"><span class="summary-label">Cash Exp</span><span id="summary-cash-expense">₩0</span></div>
+        <div class="summary-item net"><span class="summary-label">Balance</span><span id="summary-net">₩0</span></div>
+        <div class="summary-item card-expense"><span class="summary-label">Card Exp</span><span id="summary-card-expense">₩0</span></div>
       </div>
-      <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
-    </header>
-
-    <div class="day-summary" id="day-summary">
-      <div class="summary-item income"><span class="summary-label">Income</span><span id="summary-income">₩0</span></div>
-      <div class="summary-item cash-expense"><span class="summary-label">Cash Exp</span><span id="summary-cash-expense">₩0</span></div>
-      <div class="summary-item net"><span class="summary-label">Balance</span><span id="summary-net">₩0</span></div>
-      <div class="summary-item card-expense"><span class="summary-label">Card Exp</span><span id="summary-card-expense">₩0</span></div>
-    </div>
-    <div class="summary-hint">Balance = Income − Cash Expense (for <span id="summary-date-label">today</span>)</div>
-
-    <div class="weekday-row">
-      <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
     </div>
 
-    <div id="calendar-grid" class="calendar-grid"></div>
+    <div class="panel panel-calendar">
+      <div class="weekday-row">
+        <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+    </div>
 
-    <div id="day-panel" class="day-panel">
+    <div id="day-panel" class="panel panel-details">
       <div class="day-panel-header">
         <h2 id="day-panel-title">Select a day</h2>
         <button id="btn-add-for-day" class="text-btn">+ Add</button>

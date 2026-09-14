@@ -37,7 +37,6 @@
     summaryCashExpense: document.getElementById('summary-cash-expense'),
     summaryCardExpense: document.getElementById('summary-card-expense'),
     summaryNet: document.getElementById('summary-net'),
-    summaryDateLabel: document.getElementById('summary-date-label'),
 
     navBtns: document.querySelectorAll('.nav-btn'),
     screens: document.querySelectorAll('.screen'),
@@ -75,8 +74,10 @@
     const totalsByDay = {};
     entries.forEach(e => {
       const day = parseInt(e.date.split('-')[2], 10);
-      if (!totalsByDay[day]) totalsByDay[day] = { income: 0, expense: 0 };
-      totalsByDay[day][e.type] += Number(e.amount);
+      if (!totalsByDay[day]) totalsByDay[day] = { income: 0, cashExpense: 0, cardExpense: 0 };
+      if (e.type === 'income') totalsByDay[day].income += Number(e.amount);
+      else if (e.method === 'cash') totalsByDay[day].cashExpense += Number(e.amount);
+      else totalsByDay[day].cardExpense += Number(e.amount);
     });
 
     for (let i = 0; i < firstDay; i++) {
@@ -109,11 +110,17 @@
           inc.textContent = '+' + Number(totals.income).toLocaleString('ko-KR');
           wrap.appendChild(inc);
         }
-        if (totals.expense) {
-          const exp = document.createElement('span');
-          exp.className = 'amt-expense';
-          exp.textContent = '-' + Number(totals.expense).toLocaleString('ko-KR');
-          wrap.appendChild(exp);
+        if (totals.cashExpense) {
+          const cash = document.createElement('span');
+          cash.className = 'amt-cash';
+          cash.textContent = '-' + Number(totals.cashExpense).toLocaleString('ko-KR');
+          wrap.appendChild(cash);
+        }
+        if (totals.cardExpense) {
+          const card = document.createElement('span');
+          card.className = 'amt-card';
+          card.textContent = '-' + Number(totals.cardExpense).toLocaleString('ko-KR');
+          wrap.appendChild(card);
         }
         cell.appendChild(wrap);
       }
@@ -145,11 +152,6 @@
     el.summaryCashExpense.textContent = formatKRW(cashExpense);
     el.summaryCardExpense.textContent = formatKRW(cardExpense);
     el.summaryNet.textContent = formatKRW(income - cashExpense);
-
-    const d = new Date(state.selectedDate + 'T00:00:00');
-    el.summaryDateLabel.textContent = state.selectedDate === todayStr()
-      ? 'today'
-      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
   // ---------- Day panel ----------

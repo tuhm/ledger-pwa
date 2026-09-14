@@ -42,12 +42,31 @@ html, body {
 }
 .screen.hidden { display: none; }
 
+/* Calendar screen: fixed three-panel layout (15% / 70% / 15%), no page-level scroll */
+.screen-calendar {
+  overflow: hidden;
+  padding-bottom: 0;
+  min-height: 0;
+}
+.panel { display: flex; flex-direction: column; min-height: 0; }
+.panel-summary { flex: 0 0 15%; justify-content: center; gap: 6px; overflow: hidden; }
+.panel-calendar { flex: 0 0 70%; overflow: hidden; padding-bottom: 4px; }
+.panel-details {
+  flex: 0 0 15%;
+  overflow: hidden;
+  background: var(--panel);
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin: 6px 8px 0;
+  padding: 8px 12px;
+}
+
 /* ---------- Top bar ---------- */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 12px 8px;
+  padding: 2px 12px 4px;
+  flex: 0 0 auto;
 }
 
 .month-nav {
@@ -93,29 +112,27 @@ html, body {
 .day-summary {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 4px 8px;
   padding: 0 12px;
+  flex: 1;
+  min-height: 0;
 }
 .summary-item {
   background: var(--panel);
-  border-radius: var(--radius);
-  padding: 8px 10px;
+  border-radius: 10px;
+  padding: 4px 10px;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 0;
 }
-.summary-label { font-size: 11px; color: var(--text-dim); }
-.summary-item span:last-child { font-size: 14px; font-weight: 700; }
+.summary-label { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.summary-item span:last-child { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .summary-item.income span:last-child { color: var(--income); }
 .summary-item.cash-expense span:last-child { color: var(--expense); }
 .summary-item.card-expense span:last-child { color: var(--card-expense); }
-
-.summary-hint {
-  font-size: 11px;
-  color: var(--text-dim);
-  text-align: center;
-  padding: 6px 12px 10px;
-}
 
 /* ---------- Calendar ---------- */
 .weekday-row {
@@ -123,56 +140,71 @@ html, body {
   grid-template-columns: repeat(7, 1fr);
   padding: 0 8px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
   text-align: center;
-  margin-bottom: 4px;
+  flex: 0 0 auto;
+  margin-bottom: 3px;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-auto-rows: 1fr;
+  gap: 3px;
   padding: 0 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .day-cell {
-  aspect-ratio: 1 / 1.05;
   background: var(--panel);
-  border-radius: 10px;
+  border-radius: 8px;
   border: 2px solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 4px 2px;
-  gap: 2px;
+  padding: 2px 1px;
+  gap: 0;
   color: var(--text);
   font-size: 12px;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
 }
 .day-cell.empty { background: transparent; }
 .day-cell.selected { border-color: var(--accent); }
 .day-cell.today .day-num { color: var(--accent); font-weight: 700; }
-.day-cell .day-num { font-size: 13px; }
-.day-cell .day-amounts { display: flex; flex-direction: column; gap: 1px; align-items: center; }
-.day-cell .amt-income { color: var(--income); font-size: 9px; }
-.day-cell .amt-expense { color: var(--expense); font-size: 9px; }
+.day-cell .day-num { font-size: 12px; flex: 0 0 auto; }
+.day-cell .day-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  line-height: 1.15;
+}
+.day-cell .day-amounts span {
+  font-size: 8px;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.day-cell .amt-income { color: var(--income); }
+.day-cell .amt-cash { color: var(--expense); }
+.day-cell .amt-card { color: var(--card-expense); }
 
 /* ---------- Day panel ---------- */
-.day-panel {
-  margin: 14px 8px 0;
-  background: var(--panel);
-  border-radius: var(--radius);
-  padding: 12px;
-  flex: 1;
-  min-height: 160px;
-}
 .day-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  flex: 0 0 auto;
+  margin-bottom: 6px;
 }
-.day-panel-header h2 { font-size: 15px; margin: 0; font-weight: 600; }
+.day-panel-header h2 { font-size: 14px; margin: 0; font-weight: 600; }
 
 .text-btn {
   background: none;
@@ -184,7 +216,18 @@ html, body {
 }
 .text-btn.danger { color: var(--expense); }
 
-.entry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .entry-list li.empty-hint { color: var(--text-dim); font-size: 13px; padding: 12px 0; text-align: center; }
 
 .entry-row {
@@ -193,7 +236,8 @@ html, body {
   justify-content: space-between;
   background: var(--panel-2);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 8px 12px;
+  flex: 0 0 auto;
 }
 .entry-row .entry-main { display: flex; flex-direction: column; gap: 2px; }
 .entry-row .entry-category { font-size: 14px; font-weight: 600; }
