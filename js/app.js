@@ -15,6 +15,12 @@
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
   function dateStr(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+  function lastDayOfMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
+  function defaultDateForMonth(y, m) {
+    const now = new Date();
+    const isCurrentMonth = y === now.getFullYear() && m === now.getMonth();
+    return isCurrentMonth ? todayStr() : dateStr(y, m, lastDayOfMonth(y, m));
+  }
   function formatKRW(n) { return '₩' + Number(n || 0).toLocaleString('ko-KR'); }
   function monthLabel(y, m) {
     return new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -129,17 +135,19 @@
         state.selectedDate = ds;
         renderCalendar();
         renderDayPanel();
-        renderDaySummary();
+        renderSummary();
       });
 
       el.calendarGrid.appendChild(cell);
     }
   }
 
-  function renderDaySummary() {
-    const entries = Storage.getEntriesForDate(state.selectedDate);
+  function renderSummary() {
+    const monthEntries = Storage.getEntriesForMonth(state.year, state.month);
+
+    // Income / Cash Exp / Card Exp: whole-month totals, independent of selected day.
     let income = 0, cashExpense = 0, cardExpense = 0;
-    entries.forEach(e => {
+    monthEntries.forEach(e => {
       if (e.type === 'income') {
         income += Number(e.amount);
       } else if (e.method === 'cash') {
@@ -151,7 +159,17 @@
     el.summaryIncome.textContent = formatKRW(income);
     el.summaryCashExpense.textContent = formatKRW(cashExpense);
     el.summaryCardExpense.textContent = formatKRW(cardExpense);
-    el.summaryNet.textContent = formatKRW(income - cashExpense);
+
+    // Balance: running total (income − cash expense) from the 1st of the month
+    // through the selected day. Defaults to today (current month) or month-end
+    // (past/future month) when no specific day has been picked.
+    let balanceIncome = 0, balanceCashExpense = 0;
+    monthEntries.forEach(e => {
+      if (e.date > state.selectedDate) return;
+      if (e.type === 'income') balanceIncome += Number(e.amount);
+      else if (e.method === 'cash') balanceCashExpense += Number(e.amount);
+    });
+    el.summaryNet.textContent = formatKRW(balanceIncome - balanceCashExpense);
   }
 
   // ---------- Day panel ----------
@@ -261,7 +279,7 @@
       closeModal();
       renderCalendar();
       renderDayPanel();
-      renderDaySummary();
+      renderSummary();
     }
   });
 
@@ -290,32 +308,28 @@
     closeModal();
     renderCalendar();
     renderDayPanel();
-    renderDaySummary();
+    renderSummary();
   });
 
   el.btnAdd.addEventListener('click', () => openModal(state.selectedDate || todayStr()));
   el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate));
 
   // ---------- Month navigation ----------
-  function selectFirstOfMonth() {
-    state.selectedDate = dateStr(state.year, state.month, 1);
-  }
-
   el.btnPrevMonth.addEventListener('click', () => {
     state.month -= 1;
     if (state.month < 0) { state.month = 11; state.year -= 1; }
-    selectFirstOfMonth();
+    state.selectedDate = defaultDateForMonth(state.year, state.month);
     renderCalendar();
     renderDayPanel();
-    renderDaySummary();
+    renderSummary();
   });
   el.btnNextMonth.addEventListener('click', () => {
     state.month += 1;
     if (state.month > 11) { state.month = 0; state.year += 1; }
-    selectFirstOfMonth();
+    state.selectedDate = defaultDateForMonth(state.year, state.month);
     renderCalendar();
     renderDayPanel();
-    renderDaySummary();
+    renderSummary();
   });
 
   // ---------- Bottom nav ----------
@@ -402,7 +416,7 @@
         renderSettings();
         renderCalendar();
         renderDayPanel();
-        renderDaySummary();
+        renderSummary();
       } catch (e) {
         alert('Import failed: ' + e.message);
       }
@@ -421,5 +435,5 @@
   // ---------- Init ----------
   renderCalendar();
   renderDayPanel();
-  renderDaySummary();
+  renderSummary();
 })();
