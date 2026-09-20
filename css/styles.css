@@ -8,7 +8,7 @@
   --accent: #4f8cff;
   --income: #3ecf8e;
   --expense: #ff6b6b;
-  --card-expense: #ffb84f;
+  --card-expense: #4f9dff;
   --transfer: #b18cff;
   --radius: 14px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -257,6 +257,7 @@ html, body {
 .entry-row .entry-amount { font-size: 15px; font-weight: 700; }
 .entry-row .entry-amount.income { color: var(--income); }
 .entry-row .entry-amount.expense { color: var(--expense); }
+.entry-row .entry-amount.expense.card { color: var(--card-expense); }
 .entry-row .entry-amount.transfer { color: var(--transfer); }
 
 /* ---------- Bottom nav ---------- */

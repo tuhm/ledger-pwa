@@ -134,19 +134,19 @@
         if (totals.cashExpense) {
           const cash = document.createElement('span');
           cash.className = 'amt-cash';
-          cash.textContent = '-' + Number(totals.cashExpense).toLocaleString('ko-KR');
+          cash.textContent = Number(totals.cashExpense).toLocaleString('ko-KR');
           wrap.appendChild(cash);
         }
         if (totals.cardExpense) {
           const card = document.createElement('span');
           card.className = 'amt-card';
-          card.textContent = '-' + Number(totals.cardExpense).toLocaleString('ko-KR');
+          card.textContent = Number(totals.cardExpense).toLocaleString('ko-KR');
           wrap.appendChild(card);
         }
         if (totals.transfer) {
           const trf = document.createElement('span');
           trf.className = 'amt-transfer';
-          trf.textContent = '-' + Number(totals.transfer).toLocaleString('ko-KR');
+          trf.textContent = Number(totals.transfer).toLocaleString('ko-KR');
           wrap.appendChild(trf);
         }
         cell.appendChild(wrap);
@@ -277,7 +277,7 @@
 
     const amountEl = document.createElement('div');
     amountEl.className = 'bd-amount ' + type;
-    amountEl.textContent = (type === 'income' ? '+' : '-') + formatKRW(amount).slice(1);
+    amountEl.textContent = (type === 'income' ? '+' : '') + formatKRW(amount).slice(1);
 
     row.appendChild(main);
     row.appendChild(amountEl);
@@ -361,8 +361,8 @@
       main.appendChild(metaEl);
 
       const amountEl = document.createElement('div');
-      amountEl.className = 'entry-amount ' + entry.type;
-      amountEl.textContent = (entry.type === 'income' ? '+' : '-') + formatKRW(entry.amount).slice(1);
+      amountEl.className = 'entry-amount ' + entry.type + (entry.type === 'expense' && entry.method === 'card' ? ' card' : '');
+      amountEl.textContent = (entry.type === 'income' ? '+' : '') + formatKRW(entry.amount).slice(1);
 
       row.appendChild(main);
       row.appendChild(amountEl);
