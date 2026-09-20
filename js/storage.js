@@ -9,31 +9,38 @@ const Storage = (() => {
   // change what shows up in the entry form's category dropdown.
   // Types: 'expense' (counts as spending), 'income', and 'transfer'
   // (Investment / Card Payment — deducts Balance but is NOT counted as expense).
+  // 'inc-carried-over' is system-generated only (see ensureCarryOverEntries in
+  // app.js) — it's excluded from the manual entry form's category dropdown.
   const CATEGORIES = [
     // Expenses
-    { id: 'exp-utility', name: 'Utility', type: 'expense' },
-    { id: 'exp-transport', name: 'Transportation', type: 'expense' },
-    { id: 'exp-food', name: 'Food', type: 'expense' },
-    { id: 'exp-beauty', name: 'Beauty', type: 'expense' },
-    { id: 'exp-health', name: 'Health', type: 'expense' },
-    { id: 'exp-clothing', name: 'Clothing', type: 'expense' },
-    { id: 'exp-gift', name: 'Gift', type: 'expense' },
-    { id: 'exp-weddings-funerals', name: 'Weddings/Funerals', type: 'expense' },
-    { id: 'exp-supplies', name: 'Supplies', type: 'expense' },
-    { id: 'exp-apps-entertainment', name: 'Apps/Entertainment', type: 'expense' },
-    { id: 'exp-education', name: 'Education', type: 'expense' },
-    { id: 'exp-medical', name: 'Medical', type: 'expense' },
-    { id: 'exp-donation', name: 'Donation', type: 'expense' },
-    { id: 'exp-electronics', name: 'Electronics', type: 'expense' },
-    { id: 'exp-flexible', name: 'Flexible', type: 'expense' },
-    { id: 'exp-other', name: 'Others', type: 'expense' },
+    { id: 'exp-food', name: '🍽️ Foods', type: 'expense' },
+    { id: 'exp-beauty', name: '💄 Beauty', type: 'expense' },
+    { id: 'exp-clothing', name: '👕 Clothing', type: 'expense' },
+    { id: 'exp-health', name: '💪 Health', type: 'expense' },
+    { id: 'exp-apps-entertainment', name: '📱 Apps', type: 'expense' },
+    { id: 'exp-education', name: '📚 Education', type: 'expense' },
+    { id: 'exp-transport', name: '🚗 Transportation', type: 'expense' },
+    { id: 'exp-supplies', name: '📦 Supplies', type: 'expense' },
+    { id: 'exp-medical', name: '🏥 Medical', type: 'expense' },
+    { id: 'exp-utility', name: '💡 Utilities', type: 'expense' },
+    { id: 'exp-electronics', name: '💻 Electronics', type: 'expense' },
+    { id: 'exp-donation', name: '❤️ Donation', type: 'expense' },
+    { id: 'exp-gift', name: '🎁 Gift', type: 'expense' },
+    { id: 'exp-weddings-funerals', name: '💒 Weddings', type: 'expense' },
+    { id: 'exp-family', name: '👨‍👩‍👧‍👦 Family', type: 'expense' },
+    { id: 'exp-flexible', name: '🔄 Flexible', type: 'expense' },
     // Income
-    { id: 'inc-salary', name: 'Salary', type: 'income' },
-    { id: 'inc-other', name: 'Other', type: 'income' },
+    { id: 'inc-salary', name: '💰 Salary', type: 'income' },
+    { id: 'inc-pocket-money', name: '👛 Pocket Money', type: 'income' },
+    { id: 'inc-interest', name: '📈 Interest', type: 'income' },
+    { id: 'inc-asset-withdrawal', name: '🏦 Asset Withdrawal', type: 'income' },
+    { id: 'inc-carried-over', name: '🔁 Carried Over', type: 'income' },
     // Transfers (deduct Balance, not counted as expenses)
-    { id: 'trf-investment', name: 'Investment', type: 'transfer' },
-    { id: 'trf-card-payment', name: 'Card Payment', type: 'transfer' },
+    { id: 'trf-investment', name: '📊 Investment', type: 'transfer' },
+    { id: 'trf-card-payment', name: '💳 Card Payment', type: 'transfer' },
   ];
+
+  const CARRY_OVER_CATEGORY_ID = 'inc-carried-over';
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -115,6 +122,7 @@ const Storage = (() => {
   return {
     uid,
     getCategories,
+    CARRY_OVER_CATEGORY_ID,
     getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
     upsertEntry, deleteEntry,
     hashPin, getPinHash, setPinHash, wipeAll,

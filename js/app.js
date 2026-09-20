@@ -182,20 +182,73 @@
     el.summaryCashExpense.textContent = formatKRW(cashExpense);
     el.summaryCardExpense.textContent = formatKRW(cardExpense);
 
-    // Balance: true running total across ALL entries, all-time, through the LAST
-    // DAY of the displayed month — carries forward across months, fixed for every
-    // day within the month. Balance = income − cash expense − transfers.
-    // (Card expenses don't reduce balance until logged as a Card Payment transfer.)
-    const monthEndDate = dateStr(state.year, state.month, lastDayOfMonth(state.year, state.month));
-    let balance = 0;
-    Storage.getEntries().forEach(e => {
-      if (e.date > monthEndDate) return;
+    // Balance: this month's own net (income − cash expense − transfers), fixed
+    // for every day within the month. Continuity across months comes from the
+    // automatic "Carried Over" income entry on the 1st of each month (see
+    // ensureCarryOverEntries) rather than an all-time lookback — that entry IS
+    // the carried-forward balance, already counted in `income` above.
+    el.summaryNet.textContent = formatKRW(monthNet(monthEntries));
+  }
+
+  function monthNet(entries) {
+    let net = 0;
+    entries.forEach(e => {
       const amt = Number(e.amount);
-      if (e.type === 'income') balance += amt;
-      else if (e.type === 'transfer') balance -= amt;
-      else if (e.method === 'cash') balance -= amt; // cash expense
+      if (e.type === 'income') net += amt;
+      else if (e.type === 'transfer') net -= amt;
+      else if (e.method === 'cash') net -= amt; // cash expense
     });
-    el.summaryNet.textContent = formatKRW(balance);
+    return net;
+  }
+
+  // Creates/updates the automatic "Carried Over" income entry on the 1st of
+  // every month from the earliest recorded entry up through the current real
+  // month, each equal to the previous month's net. Idempotent — safe to call
+  // on every app load; self-corrects if past entries are edited later.
+  function ensureCarryOverEntries() {
+    const all = Storage.getEntries();
+    const real = all.filter(e => e.categoryId !== Storage.CARRY_OVER_CATEGORY_ID);
+    if (real.length === 0) return;
+
+    const earliestDate = real.reduce((min, e) => (e.date < min ? e.date : min), real[0].date);
+    const earliest = new Date(earliestDate + 'T00:00:00');
+    let cy = earliest.getFullYear();
+    let cm = earliest.getMonth() + 1;
+    if (cm > 11) { cm = 0; cy += 1; }
+
+    const now = new Date();
+    const realY = now.getFullYear();
+    const realM = now.getMonth();
+
+    while (cy < realY || (cy === realY && cm <= realM)) {
+      const prevM = cm === 0 ? 11 : cm - 1;
+      const prevY = cm === 0 ? cy - 1 : cy;
+      const prevNet = monthNet(Storage.getEntriesForMonth(prevY, prevM));
+      const entryDate = dateStr(cy, cm, 1);
+
+      const existing = Storage.getEntries().find(
+        e => e.categoryId === Storage.CARRY_OVER_CATEGORY_ID && e.date === entryDate
+      );
+      if (existing) {
+        if (existing.amount !== prevNet) {
+          existing.amount = prevNet;
+          Storage.upsertEntry(existing);
+        }
+      } else {
+        Storage.upsertEntry({
+          date: entryDate,
+          type: 'income',
+          categoryId: Storage.CARRY_OVER_CATEGORY_ID,
+          amount: prevNet,
+          method: null,
+          memo: '',
+          createdAt: Date.now(),
+        });
+      }
+
+      cm += 1;
+      if (cm > 11) { cm = 0; cy += 1; }
+    }
   }
 
   // ---------- Monthly summary page (category breakdown) ----------
@@ -354,8 +407,10 @@
       catEl.textContent = cat ? cat.name : '(deleted category)';
       const metaEl = document.createElement('div');
       metaEl.className = 'entry-meta';
+      const isCarryOver = entry.categoryId === Storage.CARRY_OVER_CATEGORY_ID;
       let methodLabel;
-      if (entry.type === 'income') methodLabel = 'Income';
+      if (isCarryOver) methodLabel = 'Automatic';
+      else if (entry.type === 'income') methodLabel = 'Income';
       else if (entry.type === 'transfer') methodLabel = '↔ Balance deduction';
       else methodLabel = entry.method === 'cash' ? '💵 Cash' : '💳 Card';
       metaEl.textContent = methodLabel + (entry.memo ? ' · ' + entry.memo : '');
@@ -368,7 +423,12 @@
 
       row.appendChild(main);
       row.appendChild(amountEl);
-      row.addEventListener('click', () => openModal(state.selectedDate, entry));
+      if (isCarryOver) {
+        row.classList.add('entry-row-readonly');
+        row.addEventListener('click', () => alert('This entry is generated automatically at the start of each month and can\'t be edited or deleted.'));
+      } else {
+        row.addEventListener('click', () => openModal(state.selectedDate, entry));
+      }
 
       li.appendChild(row);
       el.dayEntryList.appendChild(li);
@@ -377,7 +437,8 @@
 
   // ---------- Modal ----------
   function populateCategorySelect(type, selectedId) {
-    const categories = Storage.getCategories().filter(c => c.type === type);
+    // Carried Over is system-generated only — never manually selectable.
+    const categories = Storage.getCategories().filter(c => c.type === type && c.id !== Storage.CARRY_OVER_CATEGORY_ID);
     el.inputCategory.innerHTML = '';
     categories.forEach(c => {
       const opt = document.createElement('option');
@@ -585,6 +646,7 @@
   }
 
   // ---------- Init ----------
+  ensureCarryOverEntries();
   renderCalendar();
   renderDayPanel();
   renderSummary();

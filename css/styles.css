@@ -255,6 +255,7 @@ html, body {
 .entry-row .entry-category { font-size: 14px; font-weight: 600; }
 .entry-row .entry-meta { font-size: 11px; color: var(--text-dim); }
 .entry-row .entry-amount { font-size: 15px; font-weight: 700; }
+.entry-row-readonly { opacity: 0.7; }
 .entry-row .entry-amount.income { color: var(--income); }
 .entry-row .entry-amount.expense { color: var(--expense); }
 .entry-row .entry-amount.expense.card { color: var(--card-expense); }
