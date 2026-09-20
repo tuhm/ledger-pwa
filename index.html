@@ -93,6 +93,7 @@
         <h1 id="summary-month-label">September 2026</h1>
         <button id="btn-sum-next-month" class="icon-btn" aria-label="Next month">›</button>
       </div>
+      <button id="btn-budget-edit" class="icon-btn icon-btn-secondary" aria-label="Edit budgets">🎯</button>
     </header>
 
     <div class="summary-page">
@@ -109,6 +110,7 @@
           <h3>Expenses</h3>
           <span id="summary-expense-total" class="section-total expense">₩0</span>
         </div>
+        <div id="summary-expense-budget-line" class="budget-line hidden"></div>
         <ul id="summary-expense-list" class="breakdown-list"></ul>
       </div>
 
@@ -119,6 +121,25 @@
         </div>
         <ul id="summary-transfer-list" class="breakdown-list"></ul>
       </div>
+    </div>
+  </section>
+
+  <!-- ===== CATEGORY DETAIL (YEARLY BAR CHART) SCREEN ===== -->
+  <section id="screen-category-detail" class="screen hidden">
+    <header class="topbar summary-topbar">
+      <button id="btn-detail-back" class="text-btn">‹ Back</button>
+      <div class="month-nav">
+        <button id="btn-detail-prev-year" class="icon-btn" aria-label="Previous year">‹</button>
+        <h1 id="detail-year-label">2026</h1>
+        <button id="btn-detail-next-year" class="icon-btn" aria-label="Next year">›</button>
+      </div>
+      <span class="topbar-spacer-sm"></span>
+    </header>
+
+    <div class="detail-page">
+      <div class="detail-title" id="detail-category-title">🍽️ Foods</div>
+      <div class="detail-total" id="detail-category-total">Year total: ₩0</div>
+      <div class="bar-chart" id="bar-chart"></div>
     </div>
   </section>
 
@@ -209,9 +230,22 @@
       </label>
     </div>
 
-    <p class="export-hint">Exports a CSV of expense entries (cash + card) in this range. Income is not included.</p>
+    <p class="export-hint">Exports a CSV of monthly expense totals by category (like the Summary page) for this range.</p>
 
-    <button id="btn-export-confirm" class="primary-btn">Export CSV</button>
+    <button id="btn-export-confirm" class="primary-btn">Share CSV</button>
+  </div>
+</div>
+
+<!-- ===== BUDGET EDIT MODAL ===== -->
+<div id="budget-modal" class="modal-backdrop hidden">
+  <div class="modal">
+    <div class="modal-header">
+      <button id="btn-budget-cancel" class="text-btn">Cancel</button>
+      <h2>Monthly Budgets</h2>
+      <button id="btn-budget-save" class="text-btn">Save</button>
+    </div>
+    <p class="export-hint">Set a monthly budget per expense category. Leave blank for no budget.</p>
+    <div id="budget-form-list" class="budget-form-list"></div>
   </div>
 </div>
 

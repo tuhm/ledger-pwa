@@ -3,6 +3,7 @@ const Storage = (() => {
   const KEYS = {
     entries: 'ledger.entries',
     pinHash: 'ledger.pinHash',
+    budgets: 'ledger.budgets',
   };
 
   // Categories are fixed in code (not user-editable) — edit this list to
@@ -117,6 +118,24 @@ const Storage = (() => {
   function wipeAll() {
     localStorage.removeItem(KEYS.entries);
     localStorage.removeItem(KEYS.pinHash);
+    localStorage.removeItem(KEYS.budgets);
+  }
+
+  // Monthly budgets — { [categoryId]: amount }. Only meaningful for expense
+  // categories. Same budget applies every month (no per-month variation).
+  function getBudgets() {
+    return read(KEYS.budgets, {});
+  }
+
+  function getBudget(categoryId) {
+    return getBudgets()[categoryId] || 0;
+  }
+
+  function setBudget(categoryId, amount) {
+    const budgets = getBudgets();
+    if (amount > 0) budgets[categoryId] = amount;
+    else delete budgets[categoryId];
+    write(KEYS.budgets, budgets);
   }
 
   return {
@@ -126,5 +145,6 @@ const Storage = (() => {
     getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
     upsertEntry, deleteEntry,
     hashPin, getPinHash, setPinHash, wipeAll,
+    getBudgets, getBudget, setBudget,
   };
 })();

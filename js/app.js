@@ -6,6 +6,8 @@
     editingEntryId: null,
     modalType: 'expense',
     modalMethod: 'cash',
+    detailCategoryId: null,
+    detailYear: new Date().getFullYear(),
   };
 
   // ---------- Helpers ----------
@@ -58,6 +60,22 @@
     summaryIncomeList: document.getElementById('summary-income-list'),
     summaryExpenseList: document.getElementById('summary-expense-list'),
     summaryTransferList: document.getElementById('summary-transfer-list'),
+    summaryExpenseBudgetLine: document.getElementById('summary-expense-budget-line'),
+
+    btnBudgetEdit: document.getElementById('btn-budget-edit'),
+    budgetModal: document.getElementById('budget-modal'),
+    btnBudgetCancel: document.getElementById('btn-budget-cancel'),
+    btnBudgetSave: document.getElementById('btn-budget-save'),
+    budgetFormList: document.getElementById('budget-form-list'),
+
+    screenCategoryDetail: document.getElementById('screen-category-detail'),
+    btnDetailBack: document.getElementById('btn-detail-back'),
+    btnDetailPrevYear: document.getElementById('btn-detail-prev-year'),
+    btnDetailNextYear: document.getElementById('btn-detail-next-year'),
+    detailYearLabel: document.getElementById('detail-year-label'),
+    detailCategoryTitle: document.getElementById('detail-category-title'),
+    detailCategoryTotal: document.getElementById('detail-category-total'),
+    barChart: document.getElementById('bar-chart'),
 
     btnLockChange: document.getElementById('btn-lock-change'),
 
@@ -252,6 +270,15 @@
   }
 
   // ---------- Monthly summary page (category breakdown) ----------
+  function budgetStatus(actual, budget) {
+    if (!budget) return null;
+    const diff = budget - actual;
+    if (diff >= 0) {
+      return { cls: 'under', text: `🎯 ${formatKRW(budget)} · Under by ${formatKRW(diff)}` };
+    }
+    return { cls: 'over', text: `🎯 ${formatKRW(budget)} · Over by ${formatKRW(-diff)}` };
+  }
+
   function renderSummaryPage() {
     el.summaryMonthLabel.textContent = monthLabel(state.year, state.month);
     const entries = Storage.getEntriesForMonth(state.year, state.month);
@@ -290,19 +317,41 @@
       return c ? c.name : '(unknown)';
     }
 
-    function fillList(listEl, byCat, type, emptyText) {
+    function fillList(listEl, byCat, type, emptyText, withBudget) {
       listEl.innerHTML = '';
       const ids = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
       if (ids.length === 0) {
         listEl.appendChild(emptyHint(emptyText));
       } else {
-        ids.forEach(id => listEl.appendChild(breakdownRow(catName(id), null, byCat[id], type)));
+        ids.forEach(id => {
+          let subText = null, subClass = '';
+          if (withBudget) {
+            const status = budgetStatus(byCat[id], Storage.getBudget(id));
+            if (status) { subText = status.text; subClass = status.cls; }
+          }
+          listEl.appendChild(breakdownRow({
+            name: catName(id), subText, subClass, amount: byCat[id], type,
+            onClick: () => openCategoryDetail(id),
+          }));
+        });
       }
     }
 
-    fillList(el.summaryIncomeList, incomeByCat, 'income', 'No income this month.');
-    fillList(el.summaryExpenseList, expenseByCat, 'expense', 'No expenses this month.');
-    fillList(el.summaryTransferList, transferByCat, 'transfer', 'No deductions this month.');
+    fillList(el.summaryIncomeList, incomeByCat, 'income', 'No income this month.', false);
+    fillList(el.summaryExpenseList, expenseByCat, 'expense', 'No expenses this month.', true);
+    fillList(el.summaryTransferList, transferByCat, 'transfer', 'No deductions this month.', false);
+
+    // Overall expense budget line (sum of categories that have a budget set).
+    const expenseCategoryIds = categories.filter(c => c.type === 'expense').map(c => c.id);
+    const totalBudget = expenseCategoryIds.reduce((sum, id) => sum + Storage.getBudget(id), 0);
+    if (totalBudget > 0) {
+      const status = budgetStatus(expenseTotal, totalBudget);
+      el.summaryExpenseBudgetLine.innerHTML =
+        `Budget ${formatKRW(totalBudget)} · <span class="${status.cls}">${status.cls === 'under' ? 'Under' : 'Over'} by ${formatKRW(Math.abs(totalBudget - expenseTotal))}</span>`;
+      el.summaryExpenseBudgetLine.classList.remove('hidden');
+    } else {
+      el.summaryExpenseBudgetLine.classList.add('hidden');
+    }
   }
 
   function emptyHint(text) {
@@ -312,7 +361,7 @@
     return li;
   }
 
-  function breakdownRow(name, subText, amount, type) {
+  function breakdownRow({ name, subText, subClass, amount, type, onClick }) {
     const li = document.createElement('li');
     const row = document.createElement('div');
     row.className = 'breakdown-row';
@@ -325,7 +374,7 @@
     main.appendChild(nameEl);
     if (subText) {
       const sub = document.createElement('div');
-      sub.className = 'bd-sub';
+      sub.className = 'bd-sub' + (subClass ? ' ' + subClass : '');
       sub.textContent = subText;
       main.appendChild(sub);
     }
@@ -336,16 +385,19 @@
 
     row.appendChild(main);
     row.appendChild(amountEl);
+    if (onClick) row.addEventListener('click', onClick);
     li.appendChild(row);
     return li;
   }
 
   function showScreen(screenId) {
     el.screens.forEach(s => s.classList.toggle('hidden', s.id !== screenId));
-    el.navBtns.forEach(b => b.classList.toggle('active', b.dataset.screen === screenId));
+    if (screenId === 'screen-calendar' || screenId === 'screen-summary') {
+      el.navBtns.forEach(b => b.classList.toggle('active', b.dataset.screen === screenId));
+    }
     if (screenId === 'screen-summary') {
       renderSummaryPage();
-    } else {
+    } else if (screenId === 'screen-calendar') {
       renderCalendar();
       renderDayPanel();
       renderSummary();
@@ -354,6 +406,111 @@
 
   el.navBtns.forEach(btn => {
     btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+  });
+
+  // ---------- Category detail (yearly bar chart) ----------
+  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function categoryMonthlyTotals(categoryId, year) {
+    const totals = [];
+    for (let m = 0; m < 12; m++) {
+      const entries = Storage.getEntriesForMonth(year, m).filter(e => e.categoryId === categoryId);
+      totals.push(entries.reduce((sum, e) => sum + Number(e.amount), 0));
+    }
+    return totals;
+  }
+
+  function openCategoryDetail(categoryId) {
+    state.detailCategoryId = categoryId;
+    state.detailYear = state.year;
+    showScreen('screen-category-detail');
+    renderCategoryDetail();
+  }
+
+  function renderCategoryDetail() {
+    const cat = categoryById(state.detailCategoryId);
+    el.detailCategoryTitle.textContent = cat ? cat.name : '(unknown)';
+    el.detailYearLabel.textContent = state.detailYear;
+
+    const totals = categoryMonthlyTotals(state.detailCategoryId, state.detailYear);
+    const yearTotal = totals.reduce((a, b) => a + b, 0);
+    el.detailCategoryTotal.textContent = `Year total: ${formatKRW(yearTotal)}`;
+
+    const budget = cat && cat.type === 'expense' ? Storage.getBudget(cat.id) : 0;
+    const scaleMax = Math.max(...totals, budget, 1);
+
+    el.barChart.innerHTML = '';
+    totals.forEach((value, i) => {
+      const col = document.createElement('div');
+      col.className = 'bar-col';
+
+      const valEl = document.createElement('div');
+      valEl.className = 'bar-value';
+      valEl.textContent = value ? Number(value).toLocaleString('ko-KR') : '';
+
+      const track = document.createElement('div');
+      track.className = 'bar-track';
+
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill ' + (cat ? cat.type : '');
+      fill.style.height = Math.max((value / scaleMax) * 100, value > 0 ? 2 : 0) + '%';
+      track.appendChild(fill);
+
+      if (budget > 0) {
+        const budgetLine = document.createElement('div');
+        budgetLine.className = 'bar-budget-line';
+        budgetLine.style.bottom = (budget / scaleMax) * 100 + '%';
+        track.appendChild(budgetLine);
+      }
+
+      const monthEl = document.createElement('div');
+      monthEl.className = 'bar-month';
+      monthEl.textContent = MONTH_SHORT[i];
+
+      col.appendChild(valEl);
+      col.appendChild(track);
+      col.appendChild(monthEl);
+      el.barChart.appendChild(col);
+    });
+  }
+
+  el.btnDetailBack.addEventListener('click', () => showScreen('screen-summary'));
+  el.btnDetailPrevYear.addEventListener('click', () => { state.detailYear -= 1; renderCategoryDetail(); });
+  el.btnDetailNextYear.addEventListener('click', () => { state.detailYear += 1; renderCategoryDetail(); });
+
+  // ---------- Budget editor ----------
+  function renderBudgetForm() {
+    el.budgetFormList.innerHTML = '';
+    Storage.getCategories().filter(c => c.type === 'expense').forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'budget-form-row';
+      const label = document.createElement('label');
+      label.textContent = c.name;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.inputMode = 'numeric';
+      input.min = '0';
+      input.placeholder = '0';
+      input.dataset.categoryId = c.id;
+      const budget = Storage.getBudget(c.id);
+      if (budget) input.value = budget;
+      row.appendChild(label);
+      row.appendChild(input);
+      el.budgetFormList.appendChild(row);
+    });
+  }
+
+  el.btnBudgetEdit.addEventListener('click', () => {
+    renderBudgetForm();
+    el.budgetModal.classList.remove('hidden');
+  });
+  el.btnBudgetCancel.addEventListener('click', () => el.budgetModal.classList.add('hidden'));
+  el.btnBudgetSave.addEventListener('click', () => {
+    el.budgetFormList.querySelectorAll('input').forEach(input => {
+      Storage.setBudget(input.dataset.categoryId, Number(input.value) || 0);
+    });
+    el.budgetModal.classList.add('hidden');
+    renderSummaryPage();
   });
 
   // Tapping the summary tiles is a shortcut to the Summary tab.
@@ -605,32 +762,43 @@
       return;
     }
 
-    const rows = Storage.getEntries()
-      .filter(e => e.type === 'expense' && e.date >= fromDate && e.date <= toDate)
-      .sort((a, b) => a.date.localeCompare(b.date));
-
-    const header = ['Date', 'Category', 'Method', 'Amount (KRW)', 'Memo'];
+    // Category-level monthly summary (like the Summary page), not raw entries.
+    const header = ['Month', 'Category', 'Amount (KRW)'];
     const lines = [header.map(csvField).join(',')];
-    rows.forEach(e => {
-      const cat = categoryById(e.categoryId);
-      lines.push([
-        e.date,
-        cat ? cat.name : '',
-        e.method === 'cash' ? 'Cash' : 'Card',
-        e.amount,
-        e.memo || '',
-      ].map(csvField).join(','));
-    });
 
+    let y = Number(el.exportFromYear.value), m = Number(el.exportFromMonth.value);
+    const endY = toYear, endM = toMonth;
+    while (y < endY || (y === endY && m <= endM)) {
+      const byCat = {};
+      Storage.getEntriesForMonth(y, m).filter(e => e.type === 'expense').forEach(e => {
+        byCat[e.categoryId] = (byCat[e.categoryId] || 0) + Number(e.amount);
+      });
+      const monthTag = `${y}-${pad(m + 1)}`;
+      Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]).forEach(catId => {
+        const cat = categoryById(catId);
+        lines.push([monthTag, cat ? cat.name : '', byCat[catId]].map(csvField).join(','));
+      });
+      m += 1;
+      if (m > 11) { m = 0; y += 1; }
+    }
+
+    const filename = `ledger-summary-${fromDate}_to_${toDate}.csv`;
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ledger-expenses-${fromDate}_to_${toDate}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const file = new File([blob], filename, { type: 'text/csv' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Ledger Expense Summary' })
+        .catch(err => { if (err.name !== 'AbortError') alert('Share failed: ' + err.message); });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
 
     el.exportModal.classList.add('hidden');
   });
