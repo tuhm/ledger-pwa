@@ -407,6 +407,13 @@ html, body {
 .bar-month { font-size: 10px; color: var(--text-dim); }
 
 /* ---------- Categories page ---------- */
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  padding-bottom: 12px;
+}
 .secondary-btn {
   display: block;
   width: 100%;
@@ -417,7 +424,6 @@ html, body {
   padding: 12px;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 20px;
 }
 .static-value {
   background: var(--panel-2);

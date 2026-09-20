@@ -88,6 +88,9 @@
     categoriesIncomeList: document.getElementById('categories-income-list'),
     categoriesTransferList: document.getElementById('categories-transfer-list'),
     btnChangePin: document.getElementById('btn-change-pin'),
+    btnBackupExport: document.getElementById('btn-backup-export'),
+    btnBackupImport: document.getElementById('btn-backup-import'),
+    backupFileInput: document.getElementById('backup-file-input'),
 
     categoryModal: document.getElementById('category-modal'),
     categoryModalTitle: document.getElementById('category-modal-title'),
@@ -596,6 +599,50 @@
   el.btnCategoryAdd.addEventListener('click', () => openCategoryModal(null));
   el.btnCategoryCancel.addEventListener('click', closeCategoryModal);
   el.btnChangePin.addEventListener('click', () => LedgerLock.startChange());
+
+  // ---------- Full backup (JSON export/import) ----------
+  el.btnBackupExport.addEventListener('click', () => {
+    const json = Storage.exportAll();
+    const filename = `ledger-backup-${todayStr()}.json`;
+    const blob = new Blob([json], { type: 'application/json' });
+    const file = new File([blob], filename, { type: 'application/json' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'Ledger Backup' })
+        .catch(err => { if (err.name !== 'AbortError') alert('Share failed: ' + err.message); });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+  });
+
+  el.btnBackupImport.addEventListener('click', () => el.backupFileInput.click());
+  el.backupFileInput.addEventListener('change', () => {
+    const file = el.backupFileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (!confirm('Importing will replace ALL current entries, categories, and budgets on this device. This can\'t be undone. Continue?')) {
+        el.backupFileInput.value = '';
+        return;
+      }
+      try {
+        Storage.importAll(reader.result);
+        alert('Backup restored. The app will now reload.');
+        location.reload();
+      } catch (e) {
+        alert('Import failed: ' + e.message);
+      }
+    };
+    reader.readAsText(file);
+    el.backupFileInput.value = '';
+  });
 
   el.categoryForm.addEventListener('submit', (ev) => {
     ev.preventDefault();

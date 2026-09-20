@@ -176,6 +176,33 @@ const Storage = (() => {
     write(KEYS.budgets, budgets);
   }
 
+  // Full backup — everything needed to restore the app on a new device or
+  // after a reinstall (entries, categories, budgets, and the PIN so the same
+  // code keeps working). PIN is stored here only as its SHA-256 hash, same as
+  // on-device — not reversible to the raw PIN, but note a 4-digit PIN hash is
+  // trivially brute-forceable if the file leaks, consistent with the PIN
+  // being a casual-access deterrent rather than real security.
+  function exportAll() {
+    return JSON.stringify({
+      entries: getEntries(),
+      categories: getCategories(),
+      budgets: getBudgets(),
+      pinHash: getPinHash(),
+      exportedAt: new Date().toISOString(),
+    }, null, 2);
+  }
+
+  function importAll(json) {
+    const data = JSON.parse(json);
+    if (!Array.isArray(data.entries) || !Array.isArray(data.categories)) {
+      throw new Error('Invalid backup file');
+    }
+    saveEntries(data.entries);
+    saveCategories(data.categories);
+    if (data.budgets && typeof data.budgets === 'object') write(KEYS.budgets, data.budgets);
+    if (data.pinHash) setPinHash(data.pinHash);
+  }
+
   return {
     uid,
     getCategories, addCategory, updateCategory, deleteCategory,
@@ -184,5 +211,6 @@ const Storage = (() => {
     upsertEntry, deleteEntry,
     hashPin, getPinHash, setPinHash, wipeAll,
     getBudgets, getBudget, setBudget,
+    exportAll, importAll,
   };
 })();

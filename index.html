@@ -163,7 +163,12 @@
         <div class="summary-page-head"><h3>Transfer</h3></div>
         <ul id="categories-transfer-list" class="breakdown-list"></ul>
       </div>
-      <button id="btn-change-pin" class="secondary-btn">🔒 Change PIN</button>
+      <div class="settings-actions">
+        <button id="btn-change-pin" class="secondary-btn">🔒 Change PIN</button>
+        <button id="btn-backup-export" class="secondary-btn">⬇️ Export Full Backup (JSON)</button>
+        <button id="btn-backup-import" class="secondary-btn">⬆️ Restore from Backup (JSON)</button>
+        <input type="file" id="backup-file-input" accept="application/json" style="display:none">
+      </div>
     </div>
   </section>
 
