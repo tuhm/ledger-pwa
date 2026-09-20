@@ -4,15 +4,18 @@ const Storage = (() => {
     entries: 'ledger.entries',
     pinHash: 'ledger.pinHash',
     budgets: 'ledger.budgets',
+    categories: 'ledger.categories',
   };
 
-  // Categories are fixed in code (not user-editable) — edit this list to
-  // change what shows up in the entry form's category dropdown.
+  // Seed categories, used the first time the app runs (or after a full
+  // reset). From then on, the live list lives in localStorage and is fully
+  // editable from the Categories page (add / rename / re-icon / delete).
   // Types: 'expense' (counts as spending), 'income', and 'transfer'
   // (Investment / Card Payment — deducts Balance but is NOT counted as expense).
   // 'inc-carried-over' is system-generated only (see ensureCarryOverEntries in
-  // app.js) — it's excluded from the manual entry form's category dropdown.
-  const CATEGORIES = [
+  // app.js) — it's excluded from the manual entry form's category dropdown
+  // and from the Categories management page.
+  const DEFAULT_CATEGORIES = [
     // Expenses
     { id: 'exp-food', name: '🍽️ Foods', type: 'expense' },
     { id: 'exp-beauty', name: '💄 Beauty', type: 'expense' },
@@ -62,7 +65,41 @@ const Storage = (() => {
   }
 
   function getCategories() {
-    return CATEGORIES;
+    return read(KEYS.categories, DEFAULT_CATEGORIES);
+  }
+
+  function saveCategories(categories) {
+    write(KEYS.categories, categories);
+  }
+
+  function addCategory({ name, type }) {
+    const categories = getCategories();
+    const id = uid();
+    categories.push({ id, name, type });
+    saveCategories(categories);
+    return id;
+  }
+
+  function updateCategory(id, { name }) {
+    const categories = getCategories();
+    const cat = categories.find(c => c.id === id);
+    if (cat) {
+      cat.name = name;
+      saveCategories(categories);
+    }
+  }
+
+  // Deletes a category. If transferToId is given, all its entries are
+  // reassigned to that category first; otherwise they're left pointing at
+  // the now-deleted id (shown as "(deleted category)" in the UI).
+  function deleteCategory(id, transferToId) {
+    if (transferToId) {
+      const entries = getEntries();
+      entries.forEach(e => { if (e.categoryId === id) e.categoryId = transferToId; });
+      saveEntries(entries);
+    }
+    saveCategories(getCategories().filter(c => c.id !== id));
+    setBudget(id, 0);
   }
 
   function getEntries() {
@@ -119,6 +156,7 @@ const Storage = (() => {
     localStorage.removeItem(KEYS.entries);
     localStorage.removeItem(KEYS.pinHash);
     localStorage.removeItem(KEYS.budgets);
+    localStorage.removeItem(KEYS.categories);
   }
 
   // Monthly budgets — { [categoryId]: amount }. Only meaningful for expense
@@ -140,7 +178,7 @@ const Storage = (() => {
 
   return {
     uid,
-    getCategories,
+    getCategories, addCategory, updateCategory, deleteCategory,
     CARRY_OVER_CATEGORY_ID,
     getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
     upsertEntry, deleteEntry,

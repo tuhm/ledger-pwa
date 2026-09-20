@@ -55,7 +55,7 @@
           <button id="btn-next-month" class="icon-btn" aria-label="Next month">›</button>
         </div>
         <div class="topbar-actions">
-          <button id="btn-lock-change" class="icon-btn icon-btn-secondary" aria-label="Change PIN">🔒</button>
+          <button id="btn-categories-open" class="icon-btn icon-btn-secondary" aria-label="Edit categories">🏷️</button>
           <button id="btn-export-open" class="icon-btn icon-btn-secondary" aria-label="Export expenses">⬇</button>
           <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
         </div>
@@ -93,7 +93,6 @@
         <h1 id="summary-month-label">September 2026</h1>
         <button id="btn-sum-next-month" class="icon-btn" aria-label="Next month">›</button>
       </div>
-      <button id="btn-budget-edit" class="icon-btn icon-btn-secondary" aria-label="Edit budgets">🎯</button>
     </header>
 
     <div class="summary-page">
@@ -140,6 +139,31 @@
       <div class="detail-title" id="detail-category-title">🍽️ Foods</div>
       <div class="detail-total" id="detail-category-total">Year total: ₩0</div>
       <div class="bar-chart" id="bar-chart"></div>
+    </div>
+  </section>
+
+  <!-- ===== CATEGORIES MANAGEMENT SCREEN ===== -->
+  <section id="screen-categories" class="screen hidden">
+    <header class="topbar summary-topbar">
+      <button id="btn-categories-back" class="text-btn">‹ Calendar</button>
+      <h1>Categories</h1>
+      <button id="btn-category-add" class="icon-btn icon-btn-accent" aria-label="Add category">＋</button>
+    </header>
+
+    <div class="summary-page">
+      <div class="summary-page-section">
+        <div class="summary-page-head"><h3>Expense</h3></div>
+        <ul id="categories-expense-list" class="breakdown-list"></ul>
+      </div>
+      <div class="summary-page-section">
+        <div class="summary-page-head"><h3>Income</h3></div>
+        <ul id="categories-income-list" class="breakdown-list"></ul>
+      </div>
+      <div class="summary-page-section">
+        <div class="summary-page-head"><h3>Transfer</h3></div>
+        <ul id="categories-transfer-list" class="breakdown-list"></ul>
+      </div>
+      <button id="btn-change-pin" class="secondary-btn">🔒 Change PIN</button>
     </div>
   </section>
 
@@ -244,16 +268,53 @@
   </div>
 </div>
 
-<!-- ===== BUDGET EDIT MODAL ===== -->
-<div id="budget-modal" class="modal-backdrop hidden">
+<!-- ===== CATEGORY EDIT MODAL ===== -->
+<div id="category-modal" class="modal-backdrop hidden">
   <div class="modal">
     <div class="modal-header">
-      <button id="btn-budget-cancel" class="text-btn">Cancel</button>
-      <h2>Monthly Budgets</h2>
-      <button id="btn-budget-save" class="text-btn">Save</button>
+      <button id="btn-category-cancel" class="text-btn">Cancel</button>
+      <h2 id="category-modal-title">New Category</h2>
+      <button id="btn-category-delete" class="text-btn danger hidden">Delete</button>
     </div>
-    <p class="export-hint">Set a monthly budget per expense category. Leave blank for no budget.</p>
-    <div id="budget-form-list" class="budget-form-list"></div>
+
+    <form id="category-form">
+      <div class="type-toggle type-toggle-3" id="category-type-toggle">
+        <button type="button" class="type-btn active" data-type="expense">Expense</button>
+        <button type="button" class="type-btn" data-type="income">Income</button>
+        <button type="button" class="type-btn" data-type="transfer">Transfer</button>
+      </div>
+      <div class="field" id="category-type-static-field">
+        <span>Type</span>
+        <div id="category-type-static" class="static-value"></div>
+      </div>
+
+      <label class="field">
+        <span>Icon (emoji, optional)</span>
+        <input type="text" id="input-category-icon" maxlength="8" placeholder="e.g. 🍕">
+      </label>
+
+      <label class="field">
+        <span>Name</span>
+        <input type="text" id="input-category-name" maxlength="24" placeholder="e.g. Food" required>
+      </label>
+
+      <label class="field" id="category-budget-field">
+        <span>Monthly Budget (₩, optional)</span>
+        <input type="number" id="input-category-budget" inputmode="numeric" min="0" placeholder="0">
+      </label>
+
+      <button type="submit" class="primary-btn">Save</button>
+    </form>
+
+    <div id="category-delete-panel" class="hidden">
+      <p class="export-hint" id="category-delete-info"></p>
+      <label class="field" id="category-transfer-field">
+        <span>Move existing entries to</span>
+        <select id="category-transfer-select"></select>
+      </label>
+      <button type="button" id="btn-category-delete-confirm" class="primary-btn danger-btn">Delete Category</button>
+      <button type="button" id="btn-category-delete-cancel" class="secondary-btn">Cancel</button>
+    </div>
   </div>
 </div>
 

@@ -8,6 +8,7 @@
     modalMethod: 'cash',
     detailCategoryId: null,
     detailYear: new Date().getFullYear(),
+    editingCategoryId: null,
   };
 
   // ---------- Helpers ----------
@@ -70,12 +71,6 @@
     summaryTransferList: document.getElementById('summary-transfer-list'),
     summaryExpenseBudgetLine: document.getElementById('summary-expense-budget-line'),
 
-    btnBudgetEdit: document.getElementById('btn-budget-edit'),
-    budgetModal: document.getElementById('budget-modal'),
-    btnBudgetCancel: document.getElementById('btn-budget-cancel'),
-    btnBudgetSave: document.getElementById('btn-budget-save'),
-    budgetFormList: document.getElementById('budget-form-list'),
-
     screenCategoryDetail: document.getElementById('screen-category-detail'),
     btnDetailBack: document.getElementById('btn-detail-back'),
     btnDetailPrevYear: document.getElementById('btn-detail-prev-year'),
@@ -85,7 +80,33 @@
     detailCategoryTotal: document.getElementById('detail-category-total'),
     barChart: document.getElementById('bar-chart'),
 
-    btnLockChange: document.getElementById('btn-lock-change'),
+    btnCategoriesOpen: document.getElementById('btn-categories-open'),
+    screenCategories: document.getElementById('screen-categories'),
+    btnCategoriesBack: document.getElementById('btn-categories-back'),
+    btnCategoryAdd: document.getElementById('btn-category-add'),
+    categoriesExpenseList: document.getElementById('categories-expense-list'),
+    categoriesIncomeList: document.getElementById('categories-income-list'),
+    categoriesTransferList: document.getElementById('categories-transfer-list'),
+    btnChangePin: document.getElementById('btn-change-pin'),
+
+    categoryModal: document.getElementById('category-modal'),
+    categoryModalTitle: document.getElementById('category-modal-title'),
+    btnCategoryCancel: document.getElementById('btn-category-cancel'),
+    btnCategoryDelete: document.getElementById('btn-category-delete'),
+    categoryForm: document.getElementById('category-form'),
+    categoryTypeToggle: document.getElementById('category-type-toggle'),
+    categoryTypeStaticField: document.getElementById('category-type-static-field'),
+    categoryTypeStatic: document.getElementById('category-type-static'),
+    inputCategoryIcon: document.getElementById('input-category-icon'),
+    inputCategoryName: document.getElementById('input-category-name'),
+    categoryBudgetField: document.getElementById('category-budget-field'),
+    inputCategoryBudget: document.getElementById('input-category-budget'),
+    categoryDeletePanel: document.getElementById('category-delete-panel'),
+    categoryDeleteInfo: document.getElementById('category-delete-info'),
+    categoryTransferField: document.getElementById('category-transfer-field'),
+    categoryTransferSelect: document.getElementById('category-transfer-select'),
+    btnCategoryDeleteConfirm: document.getElementById('btn-category-delete-confirm'),
+    btnCategoryDeleteCancel: document.getElementById('btn-category-delete-cancel'),
 
     btnExportOpen: document.getElementById('btn-export-open'),
     exportModal: document.getElementById('export-modal'),
@@ -395,12 +416,13 @@
       main.appendChild(sub);
     }
 
-    const amountEl = document.createElement('div');
-    amountEl.className = 'bd-amount ' + type;
-    amountEl.textContent = (type === 'income' ? '+' : '') + formatKRW(amount).slice(1);
-
     row.appendChild(main);
-    row.appendChild(amountEl);
+    if (amount !== null) {
+      const amountEl = document.createElement('div');
+      amountEl.className = 'bd-amount ' + type;
+      amountEl.textContent = (type === 'income' ? '+' : '') + formatKRW(amount).slice(1);
+      row.appendChild(amountEl);
+    }
     if (onClick) row.addEventListener('click', onClick);
     li.appendChild(row);
     return li;
@@ -417,6 +439,8 @@
       renderCalendar();
       renderDayPanel();
       renderSummary();
+    } else if (screenId === 'screen-categories') {
+      renderCategoriesPage();
     }
   }
 
@@ -494,39 +518,156 @@
   el.btnDetailPrevYear.addEventListener('click', () => { state.detailYear -= 1; renderCategoryDetail(); });
   el.btnDetailNextYear.addEventListener('click', () => { state.detailYear += 1; renderCategoryDetail(); });
 
-  // ---------- Budget editor ----------
-  function renderBudgetForm() {
-    el.budgetFormList.innerHTML = '';
-    Storage.getCategories().filter(c => c.type === 'expense').forEach(c => {
-      const row = document.createElement('div');
-      row.className = 'budget-form-row';
-      const label = document.createElement('label');
-      label.textContent = c.name;
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.inputMode = 'numeric';
-      input.min = '0';
-      input.placeholder = '0';
-      input.dataset.categoryId = c.id;
-      const budget = Storage.getBudget(c.id);
-      if (budget) input.value = budget;
-      row.appendChild(label);
-      row.appendChild(input);
-      el.budgetFormList.appendChild(row);
+  // ---------- Categories management ----------
+  function splitCategoryName(name) {
+    const parts = (name || '').trim().split(' ');
+    if (parts.length <= 1) return { icon: '', label: name || '' };
+    return { icon: parts[0], label: parts.slice(1).join(' ') };
+  }
+
+  function renderCategoriesPage() {
+    const categories = Storage.getCategories().filter(c => c.id !== Storage.CARRY_OVER_CATEGORY_ID);
+    const lists = {
+      expense: el.categoriesExpenseList,
+      income: el.categoriesIncomeList,
+      transfer: el.categoriesTransferList,
+    };
+    Object.values(lists).forEach(l => { l.innerHTML = ''; });
+
+    ['expense', 'income', 'transfer'].forEach(type => {
+      const catsOfType = categories.filter(c => c.type === type);
+      if (catsOfType.length === 0) {
+        lists[type].appendChild(emptyHint('No categories yet.'));
+        return;
+      }
+      catsOfType.forEach(c => {
+        const budget = type === 'expense' ? Storage.getBudget(c.id) : 0;
+        lists[type].appendChild(breakdownRow({
+          name: c.name,
+          subText: budget ? `🎯 Budget ${formatKRW(budget)}` : null,
+          amount: null,
+          type,
+          onClick: () => openCategoryModal(c),
+        }));
+      });
     });
   }
 
-  el.btnBudgetEdit.addEventListener('click', () => {
-    renderBudgetForm();
-    el.budgetModal.classList.remove('hidden');
-  });
-  el.btnBudgetCancel.addEventListener('click', () => el.budgetModal.classList.add('hidden'));
-  el.btnBudgetSave.addEventListener('click', () => {
-    el.budgetFormList.querySelectorAll('input').forEach(input => {
-      Storage.setBudget(input.dataset.categoryId, Number(input.value) || 0);
+  function openCategoryModal(category) {
+    state.editingCategoryId = category ? category.id : null;
+    el.categoryModalTitle.textContent = category ? 'Edit Category' : 'New Category';
+    el.btnCategoryDelete.classList.toggle('hidden', !category);
+    el.categoryDeletePanel.classList.add('hidden');
+    el.categoryForm.classList.remove('hidden');
+
+    const type = category ? category.type : 'expense';
+    el.categoryTypeToggle.classList.toggle('hidden', !!category);
+    el.categoryTypeStaticField.classList.toggle('hidden', !category);
+    if (category) {
+      el.categoryTypeStatic.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    } else {
+      el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'expense'));
+    }
+    el.categoryBudgetField.classList.toggle('hidden', type !== 'expense');
+
+    const { icon, label } = splitCategoryName(category ? category.name : '');
+    el.inputCategoryIcon.value = icon;
+    el.inputCategoryName.value = label;
+    el.inputCategoryBudget.value = category && type === 'expense' ? (Storage.getBudget(category.id) || '') : '';
+
+    el.categoryModal.classList.remove('hidden');
+  }
+
+  function closeCategoryModal() {
+    el.categoryModal.classList.add('hidden');
+    el.categoryForm.reset();
+    state.editingCategoryId = null;
+  }
+
+  el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b === btn));
+      el.categoryBudgetField.classList.toggle('hidden', btn.dataset.type !== 'expense');
     });
-    el.budgetModal.classList.add('hidden');
-    renderSummaryPage();
+  });
+
+  el.btnCategoriesOpen.addEventListener('click', () => showScreen('screen-categories'));
+  el.btnCategoriesBack.addEventListener('click', () => showScreen('screen-calendar'));
+  el.btnCategoryAdd.addEventListener('click', () => openCategoryModal(null));
+  el.btnCategoryCancel.addEventListener('click', closeCategoryModal);
+  el.btnChangePin.addEventListener('click', () => LedgerLock.startChange());
+
+  el.categoryForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const icon = el.inputCategoryIcon.value.trim();
+    const label = el.inputCategoryName.value.trim();
+    if (!label) return;
+    const name = icon ? `${icon} ${label}` : label;
+
+    if (state.editingCategoryId) {
+      const existing = categoryById(state.editingCategoryId);
+      Storage.updateCategory(state.editingCategoryId, { name });
+      if (existing.type === 'expense') {
+        Storage.setBudget(state.editingCategoryId, Number(el.inputCategoryBudget.value) || 0);
+      }
+    } else {
+      const activeBtn = el.categoryTypeToggle.querySelector('.type-btn.active');
+      const type = activeBtn ? activeBtn.dataset.type : 'expense';
+      const newId = Storage.addCategory({ name, type });
+      if (type === 'expense') {
+        Storage.setBudget(newId, Number(el.inputCategoryBudget.value) || 0);
+      }
+    }
+
+    closeCategoryModal();
+    renderCategoriesPage();
+  });
+
+  el.btnCategoryDelete.addEventListener('click', () => {
+    const id = state.editingCategoryId;
+    const cat = categoryById(id);
+    const count = Storage.getEntries().filter(e => e.categoryId === id).length;
+    const otherCats = Storage.getCategories().filter(c => c.type === cat.type && c.id !== id && c.id !== Storage.CARRY_OVER_CATEGORY_ID);
+
+    el.categoryForm.classList.add('hidden');
+    el.categoryDeletePanel.classList.remove('hidden');
+
+    if (count === 0) {
+      el.categoryDeleteInfo.textContent = `"${cat.name}" has no entries. Delete it?`;
+      el.categoryTransferField.classList.add('hidden');
+      el.btnCategoryDeleteConfirm.disabled = false;
+    } else if (otherCats.length === 0) {
+      el.categoryDeleteInfo.textContent = `"${cat.name}" has ${count} ${count === 1 ? 'entry' : 'entries'}, and there's no other ${cat.type} category to move them to. Add another ${cat.type} category first.`;
+      el.categoryTransferField.classList.add('hidden');
+      el.btnCategoryDeleteConfirm.disabled = true;
+    } else {
+      el.categoryDeleteInfo.textContent = `"${cat.name}" has ${count} ${count === 1 ? 'entry' : 'entries'}. Choose where to move them before deleting.`;
+      el.categoryTransferField.classList.remove('hidden');
+      el.categoryTransferSelect.innerHTML = '';
+      otherCats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        el.categoryTransferSelect.appendChild(opt);
+      });
+      el.btnCategoryDeleteConfirm.disabled = false;
+    }
+  });
+
+  el.btnCategoryDeleteCancel.addEventListener('click', () => {
+    el.categoryDeletePanel.classList.add('hidden');
+    el.categoryForm.classList.remove('hidden');
+  });
+
+  el.btnCategoryDeleteConfirm.addEventListener('click', () => {
+    const id = state.editingCategoryId;
+    const cat = categoryById(id);
+    const count = Storage.getEntries().filter(e => e.categoryId === id).length;
+    const transferToId = count > 0 ? el.categoryTransferSelect.value : null;
+    if (!confirm(`Delete "${cat.name}"? This can't be undone.`)) return;
+    Storage.deleteCategory(id, transferToId);
+    closeCategoryModal();
+    renderCategoriesPage();
   });
 
   // Tapping the summary tiles is a shortcut to the Summary tab.
@@ -857,9 +998,6 @@
 
     el.exportModal.classList.add('hidden');
   });
-
-  // ---------- Lock screen ----------
-  el.btnLockChange.addEventListener('click', () => LedgerLock.startChange());
 
   // ---------- Service worker ----------
   if ('serviceWorker' in navigator) {
