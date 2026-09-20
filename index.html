@@ -62,13 +62,11 @@
   <!-- ===== MONTHLY SUMMARY SCREEN ===== -->
   <section id="screen-summary" class="screen hidden">
     <header class="topbar summary-topbar">
-      <button id="btn-summary-back" class="text-btn">‹ Calendar</button>
       <div class="month-nav">
         <button id="btn-sum-prev-month" class="icon-btn" aria-label="Previous month">‹</button>
         <h1 id="summary-month-label">September 2026</h1>
         <button id="btn-sum-next-month" class="icon-btn" aria-label="Next month">›</button>
       </div>
-      <span class="topbar-spacer"></span>
     </header>
 
     <div class="summary-page">
@@ -87,8 +85,26 @@
         </div>
         <ul id="summary-expense-list" class="breakdown-list"></ul>
       </div>
+
+      <div class="summary-page-section">
+        <div class="summary-page-head">
+          <h3>Deductions</h3>
+          <span id="summary-transfer-total" class="section-total transfer">₩0</span>
+        </div>
+        <ul id="summary-transfer-list" class="breakdown-list"></ul>
+      </div>
     </div>
   </section>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="screen-calendar">
+      <span class="nav-icon">📅</span><span>Calendar</span>
+    </button>
+    <button class="nav-btn" data-screen="screen-summary">
+      <span class="nav-icon">📊</span><span>Summary</span>
+    </button>
+  </nav>
 
 </div>
 
@@ -102,9 +118,10 @@
     </div>
 
     <form id="entry-form">
-      <div class="type-toggle">
+      <div class="type-toggle type-toggle-3">
         <button type="button" class="type-btn active" data-type="expense">Expense</button>
         <button type="button" class="type-btn" data-type="income">Income</button>
+        <button type="button" class="type-btn" data-type="transfer">Transfer</button>
       </div>
 
       <label class="field">
@@ -122,7 +139,7 @@
         <input type="number" id="input-amount" inputmode="numeric" min="0" step="1" placeholder="0" required>
       </label>
 
-      <div class="field">
+      <div class="field" id="method-field">
         <span>Payment</span>
         <div class="method-toggle">
           <button type="button" class="method-btn active" data-method="cash">💵 Cash</button>

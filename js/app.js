@@ -44,17 +44,20 @@
     summaryCardExpense: document.getElementById('summary-card-expense'),
     summaryNet: document.getElementById('summary-net'),
 
+    navBtns: document.querySelectorAll('.nav-btn'),
+    screens: document.querySelectorAll('.screen'),
     screenCalendar: document.getElementById('screen-calendar'),
     screenSummary: document.getElementById('screen-summary'),
     daySummary: document.getElementById('day-summary'),
-    btnSummaryBack: document.getElementById('btn-summary-back'),
     summaryMonthLabel: document.getElementById('summary-month-label'),
     btnSumPrevMonth: document.getElementById('btn-sum-prev-month'),
     btnSumNextMonth: document.getElementById('btn-sum-next-month'),
     summaryIncomeTotal: document.getElementById('summary-income-total'),
     summaryExpenseTotal: document.getElementById('summary-expense-total'),
+    summaryTransferTotal: document.getElementById('summary-transfer-total'),
     summaryIncomeList: document.getElementById('summary-income-list'),
     summaryExpenseList: document.getElementById('summary-expense-list'),
+    summaryTransferList: document.getElementById('summary-transfer-list'),
 
     btnExportOpen: document.getElementById('btn-export-open'),
     exportModal: document.getElementById('export-modal'),
@@ -74,6 +77,7 @@
     inputMemo: document.getElementById('input-memo'),
     btnModalCancel: document.getElementById('btn-modal-cancel'),
     btnModalDelete: document.getElementById('btn-modal-delete'),
+    methodField: document.getElementById('method-field'),
     typeBtns: document.querySelectorAll('.type-btn'),
     methodBtns: document.querySelectorAll('.method-btn'),
   };
@@ -90,8 +94,9 @@
     const totalsByDay = {};
     entries.forEach(e => {
       const day = parseInt(e.date.split('-')[2], 10);
-      if (!totalsByDay[day]) totalsByDay[day] = { income: 0, cashExpense: 0, cardExpense: 0 };
+      if (!totalsByDay[day]) totalsByDay[day] = { income: 0, cashExpense: 0, cardExpense: 0, transfer: 0 };
       if (e.type === 'income') totalsByDay[day].income += Number(e.amount);
+      else if (e.type === 'transfer') totalsByDay[day].transfer += Number(e.amount);
       else if (e.method === 'cash') totalsByDay[day].cashExpense += Number(e.amount);
       else totalsByDay[day].cardExpense += Number(e.amount);
     });
@@ -138,6 +143,12 @@
           card.textContent = '-' + Number(totals.cardExpense).toLocaleString('ko-KR');
           wrap.appendChild(card);
         }
+        if (totals.transfer) {
+          const trf = document.createElement('span');
+          trf.className = 'amt-transfer';
+          trf.textContent = '-' + Number(totals.transfer).toLocaleString('ko-KR');
+          wrap.appendChild(trf);
+        }
         cell.appendChild(wrap);
       }
 
@@ -156,32 +167,33 @@
     const monthEntries = Storage.getEntriesForMonth(state.year, state.month);
 
     // Income / Cash Exp / Card Exp: whole-month totals, independent of selected day.
+    // Transfers (Investment / Card Payment) are excluded here — they aren't expenses.
     let income = 0, cashExpense = 0, cardExpense = 0;
     monthEntries.forEach(e => {
-      if (e.type === 'income') {
-        income += Number(e.amount);
-      } else if (e.method === 'cash') {
-        cashExpense += Number(e.amount);
-      } else {
-        cardExpense += Number(e.amount);
+      if (e.type === 'income') income += Number(e.amount);
+      else if (e.type === 'expense') {
+        if (e.method === 'cash') cashExpense += Number(e.amount);
+        else cardExpense += Number(e.amount);
       }
     });
     el.summaryIncome.textContent = formatKRW(income);
     el.summaryCashExpense.textContent = formatKRW(cashExpense);
     el.summaryCardExpense.textContent = formatKRW(cardExpense);
 
-    // Balance: true running total (income − cash expense) across ALL entries,
-    // all-time, through the LAST DAY of the displayed month — carries forward
-    // across months, but stays fixed for every day within the same month
-    // (only changes when you navigate to a different month).
+    // Balance: true running total across ALL entries, all-time, through the LAST
+    // DAY of the displayed month — carries forward across months, fixed for every
+    // day within the month. Balance = income − cash expense − transfers.
+    // (Card expenses don't reduce balance until logged as a Card Payment transfer.)
     const monthEndDate = dateStr(state.year, state.month, lastDayOfMonth(state.year, state.month));
-    let balanceIncome = 0, balanceCashExpense = 0;
+    let balance = 0;
     Storage.getEntries().forEach(e => {
       if (e.date > monthEndDate) return;
-      if (e.type === 'income') balanceIncome += Number(e.amount);
-      else if (e.method === 'cash') balanceCashExpense += Number(e.amount);
+      const amt = Number(e.amount);
+      if (e.type === 'income') balance += amt;
+      else if (e.type === 'transfer') balance -= amt;
+      else if (e.method === 'cash') balance -= amt; // cash expense
     });
-    el.summaryNet.textContent = formatKRW(balanceIncome - balanceCashExpense);
+    el.summaryNet.textContent = formatKRW(balance);
   }
 
   // ---------- Monthly summary page (category breakdown) ----------
@@ -198,51 +210,44 @@
       incomeTotal += Number(e.amount);
     });
 
-    // Expense breakdown by category, tracking cash/card split.
+    // Expense breakdown by category (cash + card combined).
     const expenseByCat = {};
     let expenseTotal = 0;
     entries.filter(e => e.type === 'expense').forEach(e => {
-      if (!expenseByCat[e.categoryId]) expenseByCat[e.categoryId] = { cash: 0, card: 0, total: 0 };
-      const amt = Number(e.amount);
-      if (e.method === 'cash') expenseByCat[e.categoryId].cash += amt;
-      else expenseByCat[e.categoryId].card += amt;
-      expenseByCat[e.categoryId].total += amt;
-      expenseTotal += amt;
+      expenseByCat[e.categoryId] = (expenseByCat[e.categoryId] || 0) + Number(e.amount);
+      expenseTotal += Number(e.amount);
+    });
+
+    // Transfer breakdown (Investment / Card Payment) — deducts balance.
+    const transferByCat = {};
+    let transferTotal = 0;
+    entries.filter(e => e.type === 'transfer').forEach(e => {
+      transferByCat[e.categoryId] = (transferByCat[e.categoryId] || 0) + Number(e.amount);
+      transferTotal += Number(e.amount);
     });
 
     el.summaryIncomeTotal.textContent = formatKRW(incomeTotal);
     el.summaryExpenseTotal.textContent = formatKRW(expenseTotal);
+    el.summaryTransferTotal.textContent = formatKRW(transferTotal);
 
     function catName(id) {
       const c = categories.find(c => c.id === id);
       return c ? c.name : '(unknown)';
     }
 
-    // Income list — highest total first.
-    el.summaryIncomeList.innerHTML = '';
-    const incomeIds = Object.keys(incomeByCat).sort((a, b) => incomeByCat[b] - incomeByCat[a]);
-    if (incomeIds.length === 0) {
-      el.summaryIncomeList.appendChild(emptyHint('No income this month.'));
-    } else {
-      incomeIds.forEach(id => {
-        el.summaryIncomeList.appendChild(breakdownRow(catName(id), null, incomeByCat[id], 'income'));
-      });
+    function fillList(listEl, byCat, type, emptyText) {
+      listEl.innerHTML = '';
+      const ids = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+      if (ids.length === 0) {
+        listEl.appendChild(emptyHint(emptyText));
+      } else {
+        ids.forEach(id => listEl.appendChild(breakdownRow(catName(id), null, byCat[id], type)));
+      }
     }
 
-    // Expense list — highest total first, with cash/card sub-line.
-    el.summaryExpenseList.innerHTML = '';
-    const expenseIds = Object.keys(expenseByCat).sort((a, b) => expenseByCat[b].total - expenseByCat[a].total);
-    if (expenseIds.length === 0) {
-      el.summaryExpenseList.appendChild(emptyHint('No expenses this month.'));
-    } else {
-      expenseIds.forEach(id => {
-        const b = expenseByCat[id];
-        const parts = [];
-        if (b.cash) parts.push('💵 ' + formatKRW(b.cash));
-        if (b.card) parts.push('💳 ' + formatKRW(b.card));
-        el.summaryExpenseList.appendChild(breakdownRow(catName(id), parts.join('  ·  '), b.total, 'expense'));
-      });
-    }
+    fillList(el.summaryIncomeList, incomeByCat, 'income', 'No income this month.');
+    fillList(el.summaryExpenseList, expenseByCat, 'expense', 'No expenses this month.');
+    fillList(el.summaryTransferList, transferByCat, 'transfer', 'No deductions this month.');
   }
 
   function emptyHint(text) {
@@ -280,25 +285,27 @@
     return li;
   }
 
-  function showCalendarScreen() {
-    el.screenSummary.classList.add('hidden');
-    el.screenCalendar.classList.remove('hidden');
-    renderCalendar();
-    renderDayPanel();
-    renderSummary();
+  function showScreen(screenId) {
+    el.screens.forEach(s => s.classList.toggle('hidden', s.id !== screenId));
+    el.navBtns.forEach(b => b.classList.toggle('active', b.dataset.screen === screenId));
+    if (screenId === 'screen-summary') {
+      renderSummaryPage();
+    } else {
+      renderCalendar();
+      renderDayPanel();
+      renderSummary();
+    }
   }
 
-  function showSummaryScreen() {
-    el.screenCalendar.classList.add('hidden');
-    el.screenSummary.classList.remove('hidden');
-    renderSummaryPage();
-  }
-
-  el.daySummary.addEventListener('click', showSummaryScreen);
-  el.daySummary.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); showSummaryScreen(); }
+  el.navBtns.forEach(btn => {
+    btn.addEventListener('click', () => showScreen(btn.dataset.screen));
   });
-  el.btnSummaryBack.addEventListener('click', showCalendarScreen);
+
+  // Tapping the summary tiles is a shortcut to the Summary tab.
+  el.daySummary.addEventListener('click', () => showScreen('screen-summary'));
+  el.daySummary.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); showScreen('screen-summary'); }
+  });
 
   el.btnSumPrevMonth.addEventListener('click', () => {
     state.month -= 1;
@@ -345,7 +352,11 @@
       catEl.textContent = cat ? cat.name : '(deleted category)';
       const metaEl = document.createElement('div');
       metaEl.className = 'entry-meta';
-      metaEl.textContent = (entry.method === 'cash' ? '💵 Cash' : '💳 Card') + (entry.memo ? ' · ' + entry.memo : '');
+      let methodLabel;
+      if (entry.type === 'income') methodLabel = 'Income';
+      else if (entry.type === 'transfer') methodLabel = '↔ Balance deduction';
+      else methodLabel = entry.method === 'cash' ? '💵 Cash' : '💳 Card';
+      metaEl.textContent = methodLabel + (entry.memo ? ' · ' + entry.memo : '');
       main.appendChild(catEl);
       main.appendChild(metaEl);
 
@@ -378,6 +389,8 @@
   function setModalType(type) {
     state.modalType = type;
     el.typeBtns.forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    // Payment method (cash/card) only applies to expenses.
+    el.methodField.classList.toggle('hidden', type !== 'expense');
     populateCategorySelect(type);
   }
 
@@ -435,7 +448,7 @@
       type: state.modalType,
       categoryId: el.inputCategory.value,
       amount,
-      method: state.modalMethod,
+      method: state.modalType === 'expense' ? state.modalMethod : null,
       memo: el.inputMemo.value.trim(),
       createdAt: Date.now(),
     };

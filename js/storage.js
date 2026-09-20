@@ -6,15 +6,32 @@ const Storage = (() => {
 
   // Categories are fixed in code (not user-editable) — edit this list to
   // change what shows up in the entry form's category dropdown.
+  // Types: 'expense' (counts as spending), 'income', and 'transfer'
+  // (Investment / Card Payment — deducts Balance but is NOT counted as expense).
   const CATEGORIES = [
+    // Expenses
+    { id: 'exp-utility', name: 'Utility', type: 'expense' },
+    { id: 'exp-transport', name: 'Transportation', type: 'expense' },
     { id: 'exp-food', name: 'Food', type: 'expense' },
-    { id: 'exp-transport', name: 'Transport', type: 'expense' },
-    { id: 'exp-shopping', name: 'Shopping', type: 'expense' },
-    { id: 'exp-bills', name: 'Bills', type: 'expense' },
+    { id: 'exp-beauty', name: 'Beauty', type: 'expense' },
     { id: 'exp-health', name: 'Health', type: 'expense' },
-    { id: 'exp-other', name: 'Other', type: 'expense' },
+    { id: 'exp-clothing', name: 'Clothing', type: 'expense' },
+    { id: 'exp-gift', name: 'Gift', type: 'expense' },
+    { id: 'exp-weddings-funerals', name: 'Weddings/Funerals', type: 'expense' },
+    { id: 'exp-supplies', name: 'Supplies', type: 'expense' },
+    { id: 'exp-apps-entertainment', name: 'Apps/Entertainment', type: 'expense' },
+    { id: 'exp-education', name: 'Education', type: 'expense' },
+    { id: 'exp-medical', name: 'Medical', type: 'expense' },
+    { id: 'exp-donation', name: 'Donation', type: 'expense' },
+    { id: 'exp-electronics', name: 'Electronics', type: 'expense' },
+    { id: 'exp-flexible', name: 'Flexible', type: 'expense' },
+    { id: 'exp-other', name: 'Others', type: 'expense' },
+    // Income
     { id: 'inc-salary', name: 'Salary', type: 'income' },
     { id: 'inc-other', name: 'Other', type: 'income' },
+    // Transfers (deduct Balance, not counted as expenses)
+    { id: 'trf-investment', name: 'Investment', type: 'transfer' },
+    { id: 'trf-card-payment', name: 'Card Payment', type: 'transfer' },
   ];
 
   function uid() {
