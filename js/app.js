@@ -328,24 +328,29 @@
       return c ? c.name : '(unknown)';
     }
 
+    // Always show every category of this type (even with ₩0 this month), so
+    // budgets/trends stay visible regardless of activity. Sorted by amount
+    // descending, highest spender/earner first.
     function fillList(listEl, byCat, type, emptyText, withBudget) {
       listEl.innerHTML = '';
-      const ids = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
-      if (ids.length === 0) {
+      const catIds = categories.filter(c => c.type === type).map(c => c.id);
+      if (catIds.length === 0) {
         listEl.appendChild(emptyHint(emptyText));
-      } else {
-        ids.forEach(id => {
-          let subText = null, subClass = '';
-          if (withBudget) {
-            const status = budgetStatus(byCat[id], Storage.getBudget(id));
-            if (status) { subText = status.text; subClass = status.cls; }
-          }
-          listEl.appendChild(breakdownRow({
-            name: catName(id), subText, subClass, amount: byCat[id], type,
-            onClick: () => openCategoryDetail(id),
-          }));
-        });
+        return;
       }
+      const sorted = catIds.slice().sort((a, b) => (byCat[b] || 0) - (byCat[a] || 0));
+      sorted.forEach(id => {
+        const amount = byCat[id] || 0;
+        let subText = null, subClass = '';
+        if (withBudget) {
+          const status = budgetStatus(amount, Storage.getBudget(id));
+          if (status) { subText = status.text; subClass = status.cls; }
+        }
+        listEl.appendChild(breakdownRow({
+          name: catName(id), subText, subClass, amount, type,
+          onClick: () => openCategoryDetail(id),
+        }));
+      });
     }
 
     fillList(el.summaryIncomeList, incomeByCat, 'income', 'No income this month.', false);
