@@ -23,6 +23,14 @@
     const isCurrentMonth = y === now.getFullYear() && m === now.getMonth();
     return isCurrentMonth ? todayStr() : dateStr(y, m, lastDayOfMonth(y, m));
   }
+  // Adds n months to (y, m, d), clamping the day to the target month's length
+  // (e.g. Oct 31 + 1 month -> Nov 30, not Dec 1). Used for installment dates.
+  function addMonthsClamped(y, m, d, n) {
+    const total = m + n;
+    const ty = y + Math.floor(total / 12);
+    const tm = ((total % 12) + 12) % 12;
+    return dateStr(ty, tm, Math.min(d, lastDayOfMonth(ty, tm)));
+  }
   function formatKRW(n) { return '₩' + Number(n || 0).toLocaleString('ko-KR'); }
   function monthLabel(y, m) {
     return new Date(y, m, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -98,6 +106,9 @@
     btnModalCancel: document.getElementById('btn-modal-cancel'),
     btnModalDelete: document.getElementById('btn-modal-delete'),
     methodField: document.getElementById('method-field'),
+    installmentField: document.getElementById('installment-field'),
+    inputInstallmentEnabled: document.getElementById('input-installment-enabled'),
+    inputInstallmentCount: document.getElementById('input-installment-count'),
     typeBtns: document.querySelectorAll('.type-btn'),
     methodBtns: document.querySelectorAll('.method-btn'),
   };
@@ -611,6 +622,8 @@
     el.typeBtns.forEach(b => b.classList.toggle('active', b.dataset.type === type));
     // Payment method (cash/card) only applies to expenses.
     el.methodField.classList.toggle('hidden', type !== 'expense');
+    // Installments only apply to new expense entries, not edits of existing ones.
+    el.installmentField.classList.toggle('hidden', type !== 'expense' || !!state.editingEntryId);
     populateCategorySelect(type);
   }
 
@@ -632,14 +645,26 @@
     el.inputMemo.value = entry ? (entry.memo || '') : '';
     populateCategorySelect(state.modalType, entry ? entry.categoryId : undefined);
 
+    el.inputInstallmentEnabled.checked = false;
+    el.inputInstallmentCount.value = '';
+    el.inputInstallmentCount.classList.add('hidden');
+
     el.modal.classList.remove('hidden');
   }
 
   function closeModal() {
     el.modal.classList.add('hidden');
     el.entryForm.reset();
+    el.inputInstallmentCount.classList.add('hidden');
     state.editingEntryId = null;
   }
+
+  el.inputInstallmentEnabled.addEventListener('change', () => {
+    el.inputInstallmentCount.classList.toggle('hidden', !el.inputInstallmentEnabled.checked);
+    if (el.inputInstallmentEnabled.checked && !el.inputInstallmentCount.value) {
+      el.inputInstallmentCount.value = 2;
+    }
+  });
 
   el.typeBtns.forEach(b => b.addEventListener('click', () => setModalType(b.dataset.type)));
   el.methodBtns.forEach(b => b.addEventListener('click', () => setModalMethod(b.dataset.method)));
@@ -662,20 +687,44 @@
     const amount = Number(el.inputAmount.value);
     if (!amount || amount <= 0) return;
 
-    const entry = {
-      id: state.editingEntryId || undefined,
-      date: el.inputDate.value,
-      type: state.modalType,
-      categoryId: el.inputCategory.value,
-      amount,
-      method: state.modalType === 'expense' ? state.modalMethod : null,
-      memo: el.inputMemo.value.trim(),
-      createdAt: Date.now(),
-    };
-    Storage.upsertEntry(entry);
+    const isNewExpense = state.modalType === 'expense' && !state.editingEntryId;
+    const installmentCount = isNewExpense && el.inputInstallmentEnabled.checked
+      ? Math.max(2, Math.min(120, Number(el.inputInstallmentCount.value) || 0))
+      : 0;
 
-    state.selectedDate = entry.date;
-    const entryMonth = new Date(entry.date + 'T00:00:00');
+    const baseDate = el.inputDate.value;
+    const memo = el.inputMemo.value.trim();
+
+    if (installmentCount >= 2) {
+      const [oy, om, od] = baseDate.split('-').map(Number);
+      const per = Math.floor(amount / installmentCount);
+      const remainder = amount - per * installmentCount;
+      for (let i = 0; i < installmentCount; i++) {
+        Storage.upsertEntry({
+          date: addMonthsClamped(oy, om - 1, od, i),
+          type: 'expense',
+          categoryId: el.inputCategory.value,
+          amount: i === 0 ? per + remainder : per,
+          method: state.modalMethod,
+          memo: memo ? `${memo} (${i + 1}/${installmentCount})` : `(${i + 1}/${installmentCount})`,
+          createdAt: Date.now(),
+        });
+      }
+    } else {
+      Storage.upsertEntry({
+        id: state.editingEntryId || undefined,
+        date: baseDate,
+        type: state.modalType,
+        categoryId: el.inputCategory.value,
+        amount,
+        method: state.modalType === 'expense' ? state.modalMethod : null,
+        memo,
+        createdAt: Date.now(),
+      });
+    }
+
+    state.selectedDate = baseDate;
+    const entryMonth = new Date(baseDate + 'T00:00:00');
     state.year = entryMonth.getFullYear();
     state.month = entryMonth.getMonth();
 
@@ -712,7 +761,8 @@
   function populateExportSelects() {
     const now = new Date();
     const years = [];
-    for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) years.push(y);
+    // Reach at least 10 years out to cover long installment plans (e.g. 2035+).
+    for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 10; y++) years.push(y);
 
     [el.exportFromMonth, el.exportToMonth].forEach(sel => {
       sel.innerHTML = '';

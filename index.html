@@ -194,6 +194,14 @@
         </div>
       </div>
 
+      <div class="field" id="installment-field">
+        <label class="installment-toggle-row">
+          <input type="checkbox" id="input-installment-enabled">
+          <span>📅 Split into installments</span>
+        </label>
+        <input type="number" id="input-installment-count" inputmode="numeric" min="2" max="120" placeholder="Number of months" class="hidden">
+      </div>
+
       <label class="field">
         <span>Memo (optional)</span>
         <input type="text" id="input-memo" maxlength="60" placeholder="e.g. lunch with team">

@@ -566,6 +566,20 @@ html, body {
   font-size: 16px;
 }
 
+.installment-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+.installment-toggle-row input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+#installment-field input[type="number"] { margin-top: 10px; width: 100%; }
+
 .month-range-row {
   display: flex;
   gap: 12px;
