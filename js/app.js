@@ -59,6 +59,8 @@
     summaryExpenseList: document.getElementById('summary-expense-list'),
     summaryTransferList: document.getElementById('summary-transfer-list'),
 
+    btnLockChange: document.getElementById('btn-lock-change'),
+
     btnExportOpen: document.getElementById('btn-export-open'),
     exportModal: document.getElementById('export-modal'),
     btnExportCancel: document.getElementById('btn-export-cancel'),
@@ -572,6 +574,9 @@
     el.exportModal.classList.add('hidden');
   });
 
+  // ---------- Lock screen ----------
+  el.btnLockChange.addEventListener('click', () => LedgerLock.startChange());
+
   // ---------- Service worker ----------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -583,4 +588,5 @@
   renderCalendar();
   renderDayPanel();
   renderSummary();
+  LedgerLock.init();
 })();

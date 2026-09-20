@@ -1,9 +1,10 @@
-const CACHE_NAME = 'ledger-v4';
+const CACHE_NAME = 'ledger-v5';
 const ASSETS = [
   './',
   './index.html',
   './css/styles.css',
   './js/storage.js',
+  './js/lock.js',
   './js/app.js',
   './manifest.json',
   './icons/icon-192.png',

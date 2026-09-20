@@ -2,6 +2,7 @@
 const Storage = (() => {
   const KEYS = {
     entries: 'ledger.entries',
+    pinHash: 'ledger.pinHash',
   };
 
   // Categories are fixed in code (not user-editable) — edit this list to
@@ -92,10 +93,30 @@ const Storage = (() => {
     return entries;
   }
 
+  async function hashPin(pin) {
+    const bytes = new TextEncoder().encode(pin);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function getPinHash() {
+    return read(KEYS.pinHash, null);
+  }
+
+  function setPinHash(hash) {
+    write(KEYS.pinHash, hash);
+  }
+
+  function wipeAll() {
+    localStorage.removeItem(KEYS.entries);
+    localStorage.removeItem(KEYS.pinHash);
+  }
+
   return {
     uid,
     getCategories,
     getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
     upsertEntry, deleteEntry,
+    hashPin, getPinHash, setPinHash, wipeAll,
   };
 })();

@@ -17,6 +17,31 @@
 </head>
 <body>
 
+<!-- ===== LOCK SCREEN ===== -->
+<div id="lock-screen" class="lock-screen hidden">
+  <div class="lock-title" id="lock-title">Enter PIN</div>
+  <div class="lock-dots" id="lock-dots">
+    <span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span>
+  </div>
+  <div class="lock-error" id="lock-error"></div>
+  <div class="lock-keypad">
+    <button type="button" class="lock-key" data-digit="1">1</button>
+    <button type="button" class="lock-key" data-digit="2">2</button>
+    <button type="button" class="lock-key" data-digit="3">3</button>
+    <button type="button" class="lock-key" data-digit="4">4</button>
+    <button type="button" class="lock-key" data-digit="5">5</button>
+    <button type="button" class="lock-key" data-digit="6">6</button>
+    <button type="button" class="lock-key" data-digit="7">7</button>
+    <button type="button" class="lock-key" data-digit="8">8</button>
+    <button type="button" class="lock-key" data-digit="9">9</button>
+    <span></span>
+    <button type="button" class="lock-key" data-digit="0">0</button>
+    <button type="button" class="lock-key lock-key-del" id="lock-del" aria-label="Delete">⌫</button>
+  </div>
+  <button type="button" id="lock-forgot" class="text-btn lock-forgot hidden">Forgot PIN? Erase app data</button>
+  <button type="button" id="lock-cancel" class="text-btn lock-cancel hidden">Cancel</button>
+</div>
+
 <div id="app">
 
   <!-- ===== CALENDAR SCREEN ===== -->
@@ -30,6 +55,7 @@
           <button id="btn-next-month" class="icon-btn" aria-label="Next month">›</button>
         </div>
         <div class="topbar-actions">
+          <button id="btn-lock-change" class="icon-btn icon-btn-secondary" aria-label="Change PIN">🔒</button>
           <button id="btn-export-open" class="icon-btn icon-btn-secondary" aria-label="Export expenses">⬇</button>
           <button id="btn-add" class="icon-btn icon-btn-accent" aria-label="Add entry">＋</button>
         </div>
@@ -190,6 +216,7 @@
 </div>
 
 <script src="js/storage.js"></script>
+<script src="js/lock.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
