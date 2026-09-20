@@ -2,10 +2,11 @@
 const Storage = (() => {
   const KEYS = {
     entries: 'ledger.entries',
-    categories: 'ledger.categories',
   };
 
-  const DEFAULT_CATEGORIES = [
+  // Categories are fixed in code (not user-editable) — edit this list to
+  // change what shows up in the entry form's category dropdown.
+  const CATEGORIES = [
     { id: 'exp-food', name: 'Food', type: 'expense' },
     { id: 'exp-transport', name: 'Transport', type: 'expense' },
     { id: 'exp-shopping', name: 'Shopping', type: 'expense' },
@@ -35,24 +36,7 @@ const Storage = (() => {
   }
 
   function getCategories() {
-    return read(KEYS.categories, DEFAULT_CATEGORIES);
-  }
-
-  function saveCategories(categories) {
-    write(KEYS.categories, categories);
-  }
-
-  function addCategory(name, type) {
-    const categories = getCategories();
-    categories.push({ id: uid(), name, type });
-    saveCategories(categories);
-    return categories;
-  }
-
-  function deleteCategory(id) {
-    const categories = getCategories().filter(c => c.id !== id);
-    saveCategories(categories);
-    return categories;
+    return CATEGORIES;
   }
 
   function getEntries() {
@@ -91,28 +75,10 @@ const Storage = (() => {
     return entries;
   }
 
-  function exportAll() {
-    return JSON.stringify({
-      entries: getEntries(),
-      categories: getCategories(),
-      exportedAt: new Date().toISOString(),
-    }, null, 2);
-  }
-
-  function importAll(json) {
-    const data = JSON.parse(json);
-    if (!Array.isArray(data.entries) || !Array.isArray(data.categories)) {
-      throw new Error('Invalid backup file');
-    }
-    saveEntries(data.entries);
-    saveCategories(data.categories);
-  }
-
   return {
     uid,
-    getCategories, saveCategories, addCategory, deleteCategory,
+    getCategories,
     getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
     upsertEntry, deleteEntry,
-    exportAll, importAll,
   };
 })();

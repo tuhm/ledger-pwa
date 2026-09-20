@@ -44,16 +44,26 @@
     summaryCardExpense: document.getElementById('summary-card-expense'),
     summaryNet: document.getElementById('summary-net'),
 
-    navBtns: document.querySelectorAll('.nav-btn'),
-    screens: document.querySelectorAll('.screen'),
+    screenCalendar: document.getElementById('screen-calendar'),
+    screenSummary: document.getElementById('screen-summary'),
+    daySummary: document.getElementById('day-summary'),
+    btnSummaryBack: document.getElementById('btn-summary-back'),
+    summaryMonthLabel: document.getElementById('summary-month-label'),
+    btnSumPrevMonth: document.getElementById('btn-sum-prev-month'),
+    btnSumNextMonth: document.getElementById('btn-sum-next-month'),
+    summaryIncomeTotal: document.getElementById('summary-income-total'),
+    summaryExpenseTotal: document.getElementById('summary-expense-total'),
+    summaryIncomeList: document.getElementById('summary-income-list'),
+    summaryExpenseList: document.getElementById('summary-expense-list'),
 
-    expenseCategoryList: document.getElementById('expense-category-list'),
-    incomeCategoryList: document.getElementById('income-category-list'),
-    formAddExpenseCategory: document.getElementById('form-add-expense-category'),
-    formAddIncomeCategory: document.getElementById('form-add-income-category'),
-    btnExport: document.getElementById('btn-export'),
-    btnImport: document.getElementById('btn-import'),
-    importFileInput: document.getElementById('import-file-input'),
+    btnExportOpen: document.getElementById('btn-export-open'),
+    exportModal: document.getElementById('export-modal'),
+    btnExportCancel: document.getElementById('btn-export-cancel'),
+    btnExportConfirm: document.getElementById('btn-export-confirm'),
+    exportFromMonth: document.getElementById('export-from-month'),
+    exportFromYear: document.getElementById('export-from-year'),
+    exportToMonth: document.getElementById('export-to-month'),
+    exportToYear: document.getElementById('export-to-year'),
 
     modal: document.getElementById('entry-modal'),
     modalTitle: document.getElementById('modal-title'),
@@ -173,6 +183,135 @@
     });
     el.summaryNet.textContent = formatKRW(balanceIncome - balanceCashExpense);
   }
+
+  // ---------- Monthly summary page (category breakdown) ----------
+  function renderSummaryPage() {
+    el.summaryMonthLabel.textContent = monthLabel(state.year, state.month);
+    const entries = Storage.getEntriesForMonth(state.year, state.month);
+    const categories = Storage.getCategories();
+
+    // Income breakdown by category.
+    const incomeByCat = {};
+    let incomeTotal = 0;
+    entries.filter(e => e.type === 'income').forEach(e => {
+      incomeByCat[e.categoryId] = (incomeByCat[e.categoryId] || 0) + Number(e.amount);
+      incomeTotal += Number(e.amount);
+    });
+
+    // Expense breakdown by category, tracking cash/card split.
+    const expenseByCat = {};
+    let expenseTotal = 0;
+    entries.filter(e => e.type === 'expense').forEach(e => {
+      if (!expenseByCat[e.categoryId]) expenseByCat[e.categoryId] = { cash: 0, card: 0, total: 0 };
+      const amt = Number(e.amount);
+      if (e.method === 'cash') expenseByCat[e.categoryId].cash += amt;
+      else expenseByCat[e.categoryId].card += amt;
+      expenseByCat[e.categoryId].total += amt;
+      expenseTotal += amt;
+    });
+
+    el.summaryIncomeTotal.textContent = formatKRW(incomeTotal);
+    el.summaryExpenseTotal.textContent = formatKRW(expenseTotal);
+
+    function catName(id) {
+      const c = categories.find(c => c.id === id);
+      return c ? c.name : '(unknown)';
+    }
+
+    // Income list — highest total first.
+    el.summaryIncomeList.innerHTML = '';
+    const incomeIds = Object.keys(incomeByCat).sort((a, b) => incomeByCat[b] - incomeByCat[a]);
+    if (incomeIds.length === 0) {
+      el.summaryIncomeList.appendChild(emptyHint('No income this month.'));
+    } else {
+      incomeIds.forEach(id => {
+        el.summaryIncomeList.appendChild(breakdownRow(catName(id), null, incomeByCat[id], 'income'));
+      });
+    }
+
+    // Expense list — highest total first, with cash/card sub-line.
+    el.summaryExpenseList.innerHTML = '';
+    const expenseIds = Object.keys(expenseByCat).sort((a, b) => expenseByCat[b].total - expenseByCat[a].total);
+    if (expenseIds.length === 0) {
+      el.summaryExpenseList.appendChild(emptyHint('No expenses this month.'));
+    } else {
+      expenseIds.forEach(id => {
+        const b = expenseByCat[id];
+        const parts = [];
+        if (b.cash) parts.push('💵 ' + formatKRW(b.cash));
+        if (b.card) parts.push('💳 ' + formatKRW(b.card));
+        el.summaryExpenseList.appendChild(breakdownRow(catName(id), parts.join('  ·  '), b.total, 'expense'));
+      });
+    }
+  }
+
+  function emptyHint(text) {
+    const li = document.createElement('li');
+    li.className = 'empty-hint';
+    li.textContent = text;
+    return li;
+  }
+
+  function breakdownRow(name, subText, amount, type) {
+    const li = document.createElement('li');
+    const row = document.createElement('div');
+    row.className = 'breakdown-row';
+
+    const main = document.createElement('div');
+    main.className = 'bd-main';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'bd-name';
+    nameEl.textContent = name;
+    main.appendChild(nameEl);
+    if (subText) {
+      const sub = document.createElement('div');
+      sub.className = 'bd-sub';
+      sub.textContent = subText;
+      main.appendChild(sub);
+    }
+
+    const amountEl = document.createElement('div');
+    amountEl.className = 'bd-amount ' + type;
+    amountEl.textContent = (type === 'income' ? '+' : '-') + formatKRW(amount).slice(1);
+
+    row.appendChild(main);
+    row.appendChild(amountEl);
+    li.appendChild(row);
+    return li;
+  }
+
+  function showCalendarScreen() {
+    el.screenSummary.classList.add('hidden');
+    el.screenCalendar.classList.remove('hidden');
+    renderCalendar();
+    renderDayPanel();
+    renderSummary();
+  }
+
+  function showSummaryScreen() {
+    el.screenCalendar.classList.add('hidden');
+    el.screenSummary.classList.remove('hidden');
+    renderSummaryPage();
+  }
+
+  el.daySummary.addEventListener('click', showSummaryScreen);
+  el.daySummary.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); showSummaryScreen(); }
+  });
+  el.btnSummaryBack.addEventListener('click', showCalendarScreen);
+
+  el.btnSumPrevMonth.addEventListener('click', () => {
+    state.month -= 1;
+    if (state.month < 0) { state.month = 11; state.year -= 1; }
+    state.selectedDate = defaultDateForMonth(state.year, state.month);
+    renderSummaryPage();
+  });
+  el.btnSumNextMonth.addEventListener('click', () => {
+    state.month += 1;
+    if (state.month > 11) { state.month = 0; state.year += 1; }
+    state.selectedDate = defaultDateForMonth(state.year, state.month);
+    renderSummaryPage();
+  });
 
   // ---------- Day panel ----------
   function renderDayPanel() {
@@ -334,97 +473,90 @@
     renderSummary();
   });
 
-  // ---------- Bottom nav ----------
-  el.navBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      el.navBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      el.screens.forEach(s => s.classList.toggle('hidden', s.id !== btn.dataset.screen));
-      if (btn.dataset.screen === 'screen-settings') renderSettings();
-    });
-  });
+  // ---------- Export (CSV, expenses only, by month range) ----------
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  // ---------- Settings ----------
-  function renderSettings() {
-    const categories = Storage.getCategories();
-    renderCategoryList(el.expenseCategoryList, categories.filter(c => c.type === 'expense'));
-    renderCategoryList(el.incomeCategoryList, categories.filter(c => c.type === 'income'));
-  }
+  function populateExportSelects() {
+    const now = new Date();
+    const years = [];
+    for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) years.push(y);
 
-  function renderCategoryList(listEl, categories) {
-    listEl.innerHTML = '';
-    categories.forEach(c => {
-      const li = document.createElement('li');
-      li.className = 'category-row';
-      const name = document.createElement('span');
-      name.textContent = c.name;
-      const del = document.createElement('button');
-      del.textContent = 'Remove';
-      del.addEventListener('click', () => {
-        if (confirm(`Remove category "${c.name}"? Existing entries keep their amount but lose this label.`)) {
-          Storage.deleteCategory(c.id);
-          renderSettings();
-        }
+    [el.exportFromMonth, el.exportToMonth].forEach(sel => {
+      sel.innerHTML = '';
+      MONTH_NAMES.forEach((name, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = name;
+        sel.appendChild(opt);
       });
-      li.appendChild(name);
-      li.appendChild(del);
-      listEl.appendChild(li);
     });
+    [el.exportFromYear, el.exportToYear].forEach(sel => {
+      sel.innerHTML = '';
+      years.forEach(y => {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        sel.appendChild(opt);
+      });
+    });
+
+    // Default both From and To to the month currently displayed on the calendar.
+    el.exportFromMonth.value = state.month;
+    el.exportFromYear.value = state.year;
+    el.exportToMonth.value = state.month;
+    el.exportToYear.value = state.year;
   }
 
-  el.formAddExpenseCategory.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const input = ev.target.querySelector('input');
-    const name = input.value.trim();
-    if (!name) return;
-    Storage.addCategory(name, 'expense');
-    input.value = '';
-    renderSettings();
-  });
+  function csvField(value) {
+    const s = String(value);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
 
-  el.formAddIncomeCategory.addEventListener('submit', (ev) => {
-    ev.preventDefault();
-    const input = ev.target.querySelector('input');
-    const name = input.value.trim();
-    if (!name) return;
-    Storage.addCategory(name, 'income');
-    input.value = '';
-    renderSettings();
+  el.btnExportOpen.addEventListener('click', () => {
+    populateExportSelects();
+    el.exportModal.classList.remove('hidden');
   });
+  el.btnExportCancel.addEventListener('click', () => el.exportModal.classList.add('hidden'));
 
-  // ---------- Export / Import ----------
-  el.btnExport.addEventListener('click', () => {
-    const json = Storage.exportAll();
-    const blob = new Blob([json], { type: 'application/json' });
+  el.btnExportConfirm.addEventListener('click', () => {
+    const fromDate = dateStr(Number(el.exportFromYear.value), Number(el.exportFromMonth.value), 1);
+    const toYear = Number(el.exportToYear.value);
+    const toMonth = Number(el.exportToMonth.value);
+    const toDate = dateStr(toYear, toMonth, lastDayOfMonth(toYear, toMonth));
+
+    if (fromDate > toDate) {
+      alert('"From" month must be before or equal to "To" month.');
+      return;
+    }
+
+    const rows = Storage.getEntries()
+      .filter(e => e.type === 'expense' && e.date >= fromDate && e.date <= toDate)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const header = ['Date', 'Category', 'Method', 'Amount (KRW)', 'Memo'];
+    const lines = [header.map(csvField).join(',')];
+    rows.forEach(e => {
+      const cat = categoryById(e.categoryId);
+      lines.push([
+        e.date,
+        cat ? cat.name : '',
+        e.method === 'cash' ? 'Cash' : 'Card',
+        e.amount,
+        e.memo || '',
+      ].map(csvField).join(','));
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ledger-backup-${todayStr()}.json`;
+    a.download = `ledger-expenses-${fromDate}_to_${toDate}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  });
 
-  el.btnImport.addEventListener('click', () => el.importFileInput.click());
-  el.importFileInput.addEventListener('change', () => {
-    const file = el.importFileInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        Storage.importAll(reader.result);
-        alert('Import successful.');
-        renderSettings();
-        renderCalendar();
-        renderDayPanel();
-        renderSummary();
-      } catch (e) {
-        alert('Import failed: ' + e.message);
-      }
-    };
-    reader.readAsText(file);
-    el.importFileInput.value = '';
+    el.exportModal.classList.add('hidden');
   });
 
   // ---------- Service worker ----------

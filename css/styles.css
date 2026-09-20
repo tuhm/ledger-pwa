@@ -99,13 +99,23 @@ html, body {
 }
 .icon-btn:active { background: var(--panel-2); }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .icon-btn-accent {
   background: var(--accent);
   color: white;
   font-size: 20px;
   font-weight: 700;
-  position: absolute;
-  right: 12px;
+}
+
+.icon-btn-secondary {
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 16px;
 }
 
 /* ---------- Day summary ---------- */
@@ -246,82 +256,55 @@ html, body {
 .entry-row .entry-amount.income { color: var(--income); }
 .entry-row .entry-amount.expense { color: var(--expense); }
 
-/* ---------- Bottom nav ---------- */
-.bottom-nav {
-  display: flex;
-  border-top: 1px solid var(--border);
-  background: var(--panel);
-  padding-bottom: var(--safe-bottom);
+/* ---------- Monthly summary page ---------- */
+.day-summary { cursor: pointer; }
+.day-summary:active { opacity: 0.85; }
+
+.summary-topbar { padding: 2px 8px 8px; }
+.summary-topbar .month-nav h1 { font-size: 17px; min-width: 150px; }
+.topbar-spacer { width: 72px; flex: 0 0 auto; }
+.summary-topbar .text-btn { flex: 0 0 auto; white-space: nowrap; }
+
+.summary-page {
+  padding: 0 12px 24px;
+  overflow-y: auto;
 }
-.nav-btn {
-  flex: 1;
-  background: none;
-  border: none;
+.summary-page-section { margin-top: 14px; }
+.summary-page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.summary-page-head h3 {
+  font-size: 13px;
   color: var(--text-dim);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 0 6px;
-  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin: 0;
 }
-.nav-btn.active { color: var(--accent); }
-.nav-icon { font-size: 20px; }
+.section-total { font-size: 17px; font-weight: 700; }
+.section-total.income { color: var(--income); }
+.section-total.expense { color: var(--expense); }
 
-/* ---------- Settings ---------- */
-.settings-section { padding: 8px 16px 20px; }
-.settings-section h3 { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; margin: 8px 0; }
+.breakdown-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.breakdown-list li.empty-hint { color: var(--text-dim); font-size: 13px; padding: 10px 0; text-align: center; }
 
-.category-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.category-row {
+.breakdown-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: var(--panel);
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 14px;
+  gap: 10px;
 }
-.category-row button {
-  background: none;
-  border: none;
-  color: var(--expense);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.add-category-form { display: flex; gap: 8px; }
-.add-category-form input {
-  flex: 1;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  color: var(--text);
-  font-size: 14px;
-}
-.add-category-form button {
-  background: var(--accent);
-  border: none;
-  color: white;
-  border-radius: 10px;
-  padding: 0 16px;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.secondary-btn {
-  display: block;
-  width: 100%;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 10px;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 8px;
-}
+.breakdown-row .bd-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.breakdown-row .bd-name { font-size: 14px; font-weight: 600; }
+.breakdown-row .bd-sub { font-size: 11px; color: var(--text-dim); }
+.breakdown-row .bd-amount { font-size: 15px; font-weight: 700; white-space: nowrap; }
+.breakdown-row .bd-amount.income { color: var(--income); }
+.breakdown-row .bd-amount.expense { color: var(--expense); }
 
 /* ---------- Modal ---------- */
 .modal-backdrop {
@@ -386,6 +369,33 @@ html, body {
   padding: 12px;
   color: var(--text);
   font-size: 16px;
+}
+
+.month-range-row {
+  display: flex;
+  gap: 12px;
+}
+.month-range-row .field { flex: 1; }
+
+.month-year-select {
+  display: flex;
+  gap: 6px;
+}
+.month-year-select select {
+  flex: 1;
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 6px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.export-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: -4px 0 14px;
 }
 
 .primary-btn {
