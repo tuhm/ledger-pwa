@@ -598,6 +598,7 @@
   el.btnCategoriesBack.addEventListener('click', () => showScreen('screen-calendar'));
   el.btnCategoryAdd.addEventListener('click', () => openCategoryModal(null));
   el.btnCategoryCancel.addEventListener('click', closeCategoryModal);
+  closeOnBackdropTap(el.categoryModal, closeCategoryModal);
   el.btnChangePin.addEventListener('click', () => LedgerLock.startChange());
 
   // ---------- Full backup (JSON export/import) ----------
@@ -854,9 +855,6 @@
 
   el.inputInstallmentEnabled.addEventListener('change', () => {
     el.inputInstallmentCount.classList.toggle('hidden', !el.inputInstallmentEnabled.checked);
-    if (el.inputInstallmentEnabled.checked && !el.inputInstallmentCount.value) {
-      el.inputInstallmentCount.value = 2;
-    }
   });
 
   el.typeBtns.forEach(b => b.addEventListener('click', () => setModalType(b.dataset.type)));
@@ -864,10 +862,26 @@
 
   el.btnModalCancel.addEventListener('click', closeModal);
 
+  // Tapping the dimmed backdrop (outside the sheet) cancels, same as Cancel.
+  function closeOnBackdropTap(backdropEl, closeFn) {
+    backdropEl.addEventListener('click', (ev) => {
+      if (ev.target === backdropEl) closeFn();
+    });
+  }
+  closeOnBackdropTap(el.modal, closeModal);
+
   el.btnModalDelete.addEventListener('click', () => {
     if (!state.editingEntryId) return;
-    if (confirm('Delete this entry?')) {
-      Storage.deleteEntry(state.editingEntryId);
+    const entry = Storage.getEntries().find(e => e.id === state.editingEntryId);
+    const groupId = entry && entry.installmentGroupId;
+    const groupEntries = groupId ? Storage.getEntries().filter(e => e.installmentGroupId === groupId) : [entry];
+
+    const message = groupEntries.length > 1
+      ? `Delete this entry and its ${groupEntries.length - 1} other installment${groupEntries.length - 1 === 1 ? '' : 's'} (${groupEntries.length} total)?`
+      : 'Delete this entry?';
+
+    if (confirm(message)) {
+      groupEntries.forEach(e => Storage.deleteEntry(e.id));
       closeModal();
       renderCalendar();
       renderDayPanel();
@@ -881,9 +895,13 @@
     if (!amount || amount <= 0) return;
 
     const isNewExpense = state.modalType === 'expense' && !state.editingEntryId;
-    const installmentCount = isNewExpense && el.inputInstallmentEnabled.checked
-      ? Math.max(2, Math.min(120, Number(el.inputInstallmentCount.value) || 0))
-      : 0;
+    const wantsInstallments = isNewExpense && el.inputInstallmentEnabled.checked;
+    const rawCount = Number(el.inputInstallmentCount.value) || 0;
+    if (wantsInstallments && rawCount < 2) {
+      alert('Enter the number of months to split this into (2 or more).');
+      return;
+    }
+    const installmentCount = wantsInstallments ? Math.min(120, rawCount) : 0;
 
     const baseDate = el.inputDate.value;
     const memo = el.inputMemo.value.trim();
@@ -892,6 +910,7 @@
       const [oy, om, od] = baseDate.split('-').map(Number);
       const per = Math.floor(amount / installmentCount);
       const remainder = amount - per * installmentCount;
+      const installmentGroupId = Storage.uid();
       for (let i = 0; i < installmentCount; i++) {
         Storage.upsertEntry({
           date: addMonthsClamped(oy, om - 1, od, i),
@@ -900,6 +919,7 @@
           amount: i === 0 ? per + remainder : per,
           method: state.modalMethod,
           memo: memo ? `${memo} (${i + 1}/${installmentCount})` : `(${i + 1}/${installmentCount})`,
+          installmentGroupId,
           createdAt: Date.now(),
         });
       }
@@ -931,22 +951,46 @@
   el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate));
 
   // ---------- Month navigation ----------
-  el.btnPrevMonth.addEventListener('click', () => {
+  function goToPrevMonth() {
     state.month -= 1;
     if (state.month < 0) { state.month = 11; state.year -= 1; }
     state.selectedDate = defaultDateForMonth(state.year, state.month);
     renderCalendar();
     renderDayPanel();
     renderSummary();
-  });
-  el.btnNextMonth.addEventListener('click', () => {
+  }
+  function goToNextMonth() {
     state.month += 1;
     if (state.month > 11) { state.month = 0; state.year += 1; }
     state.selectedDate = defaultDateForMonth(state.year, state.month);
     renderCalendar();
     renderDayPanel();
     renderSummary();
-  });
+  }
+  el.btnPrevMonth.addEventListener('click', goToPrevMonth);
+  el.btnNextMonth.addEventListener('click', goToNextMonth);
+
+  // Swipe left/right on the calendar grid to change months (standard
+  // calendar-app convention: swipe left -> next, swipe right -> previous).
+  (function setupCalendarSwipe() {
+    let startX = 0, startY = 0, tracking = false;
+    const SWIPE_THRESHOLD = 45;
+    el.calendarGrid.addEventListener('touchstart', (ev) => {
+      if (ev.touches.length !== 1) return;
+      startX = ev.touches[0].clientX;
+      startY = ev.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+    el.calendarGrid.addEventListener('touchend', (ev) => {
+      if (!tracking) return;
+      tracking = false;
+      const dx = ev.changedTouches[0].clientX - startX;
+      const dy = ev.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) goToNextMonth(); else goToPrevMonth();
+      }
+    }, { passive: true });
+  })();
 
   // ---------- Export (CSV, expenses only, by month range) ----------
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -993,6 +1037,7 @@
     el.exportModal.classList.remove('hidden');
   });
   el.btnExportCancel.addEventListener('click', () => el.exportModal.classList.add('hidden'));
+  closeOnBackdropTap(el.exportModal, () => el.exportModal.classList.add('hidden'));
 
   el.btnExportConfirm.addEventListener('click', () => {
     const fromDate = dateStr(Number(el.exportFromYear.value), Number(el.exportFromMonth.value), 1);
