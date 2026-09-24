@@ -46,7 +46,6 @@
     calendarGrid: document.getElementById('calendar-grid'),
     btnPrevMonth: document.getElementById('btn-prev-month'),
     btnNextMonth: document.getElementById('btn-next-month'),
-    btnAdd: document.getElementById('btn-add'),
     btnAddForDay: document.getElementById('btn-add-for-day'),
     dayPanelTitle: document.getElementById('day-panel-title'),
     dayEntryList: document.getElementById('day-entry-list'),
@@ -981,8 +980,7 @@
     renderSummary();
   });
 
-  el.btnAdd.addEventListener('click', () => openModal(state.selectedDate || todayStr()));
-  el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate));
+  el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate || todayStr()));
 
   // ---------- Month navigation ----------
   function goToPrevMonth() {

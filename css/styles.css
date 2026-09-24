@@ -51,9 +51,9 @@ html, body {
 }
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-summary { flex: 0 0 15%; justify-content: center; gap: 6px; overflow: hidden; }
-.panel-calendar { flex: 0 0 70%; overflow: hidden; padding-bottom: 4px; }
+.panel-calendar { flex: 0 0 60%; overflow: hidden; padding-bottom: 4px; }
 .panel-details {
-  flex: 0 0 15%;
+  flex: 0 0 25%;
   overflow: hidden;
   background: var(--panel);
   border-radius: var(--radius) var(--radius) 0 0;
@@ -109,8 +109,10 @@ html, body {
 .icon-btn-accent {
   background: var(--accent);
   color: white;
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 700;
+  width: 44px;
+  height: 44px;
 }
 
 .icon-btn-secondary {
@@ -151,7 +153,7 @@ html, body {
   grid-template-columns: repeat(7, 1fr);
   padding: 0 8px;
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
   flex: 0 0 auto;
   margin-bottom: 3px;
@@ -187,17 +189,17 @@ html, body {
 .day-cell.empty { background: transparent; }
 .day-cell.selected { border-color: var(--accent); }
 .day-cell.today .day-num { color: var(--accent); font-weight: 700; }
-.day-cell .day-num { font-size: 12px; flex: 0 0 auto; }
+.day-cell .day-num { font-size: 14px; flex: 0 0 auto; }
 .day-cell .day-amounts {
   display: flex;
   flex-direction: column;
   align-items: center;
   width: 100%;
   min-width: 0;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 .day-cell .day-amounts span {
-  font-size: 8px;
+  font-size: 9px;
   max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
