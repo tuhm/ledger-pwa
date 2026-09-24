@@ -232,9 +232,10 @@
         <input type="number" id="input-installment-count" inputmode="numeric" min="2" max="120" placeholder="Number of months" class="hidden">
       </div>
 
-      <label class="field">
+      <label class="field memo-field">
         <span>Memo (optional)</span>
-        <input type="text" id="input-memo" maxlength="60" placeholder="e.g. lunch with team">
+        <input type="text" id="input-memo" maxlength="60" placeholder="e.g. lunch with team" autocomplete="off">
+        <ul id="memo-suggestions" class="memo-suggestions hidden"></ul>
       </label>
 
       <button type="submit" class="primary-btn">Save</button>

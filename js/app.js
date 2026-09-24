@@ -126,6 +126,7 @@
     inputCategory: document.getElementById('input-category'),
     inputAmount: document.getElementById('input-amount'),
     inputMemo: document.getElementById('input-memo'),
+    memoSuggestions: document.getElementById('memo-suggestions'),
     btnModalCancel: document.getElementById('btn-modal-cancel'),
     btnModalDelete: document.getElementById('btn-modal-delete'),
     methodField: document.getElementById('method-field'),
@@ -831,6 +832,8 @@
     state.editingEntryId = entry ? entry.id : null;
     el.modalTitle.textContent = entry ? 'Edit Entry' : 'New Entry';
     el.btnModalDelete.classList.toggle('hidden', !entry);
+    memoWordPool = buildMemoWordPool();
+    hideMemoSuggestions();
 
     setModalType(entry ? entry.type : 'expense');
     setModalMethod(entry ? entry.method : 'card');
@@ -845,14 +848,14 @@
     el.inputInstallmentCount.classList.add('hidden');
 
     // Installment entries: type is locked (always expense, can't be
-    // reassigned), and category/payment/amount edits cascade to the whole
-    // series while date/memo stay per-entry — surfaced via a hint.
+    // reassigned), and category/payment/amount/memo edits cascade to the
+    // whole series while only date stays per-entry — surfaced via a hint.
     const groupId = entry && entry.installmentGroupId;
     el.typeBtns.forEach(b => { b.disabled = !!groupId; });
     if (groupId) {
       const count = Storage.getEntries().filter(e => e.installmentGroupId === groupId).length;
       el.installmentEditHint.textContent =
-        `Part of a ${count}-month installment series. Category, payment, and amount changes apply to all ${count} entries. Date only changes this one.`;
+        `Part of a ${count}-month installment series. Category, payment, amount, and memo changes apply to all ${count} entries. Date only changes this one.`;
       el.installmentEditHint.classList.remove('hidden');
     } else {
       el.installmentEditHint.classList.add('hidden');
@@ -865,8 +868,83 @@
     el.modal.classList.add('hidden');
     el.entryForm.reset();
     el.inputInstallmentCount.classList.add('hidden');
+    hideMemoSuggestions();
     state.editingEntryId = null;
   }
+
+  // ---------- Memo autocomplete (words seen in past memos only) ----------
+  let memoWordPool = [];
+
+  function buildMemoWordPool() {
+    const seen = new Map(); // lowercase -> first-seen original casing
+    Storage.getEntries().forEach(e => {
+      if (!e.memo) return;
+      const stripped = e.memo.replace(/\s*\(\d+\/\d+\)$/, '');
+      stripped.split(/\s+/).forEach(word => {
+        const w = word.trim();
+        if (w.length < 2) return;
+        const key = w.toLowerCase();
+        if (!seen.has(key)) seen.set(key, w);
+      });
+    });
+    return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+  }
+
+  function getCurrentWordBounds(input) {
+    const value = input.value;
+    const cursor = input.selectionStart == null ? value.length : input.selectionStart;
+    const before = value.slice(0, cursor);
+    const match = before.match(/(\S+)$/);
+    if (!match) return null;
+    return { start: cursor - match[1].length, end: cursor, word: match[1] };
+  }
+
+  let memoBlurTimer = null;
+  function hideMemoSuggestions() {
+    if (memoBlurTimer) { clearTimeout(memoBlurTimer); memoBlurTimer = null; }
+    el.memoSuggestions.classList.add('hidden');
+    el.memoSuggestions.innerHTML = '';
+  }
+
+  function renderMemoSuggestions() {
+    const bounds = getCurrentWordBounds(el.inputMemo);
+    if (!bounds || bounds.word.length === 0) { hideMemoSuggestions(); return; }
+
+    const prefix = bounds.word.toLowerCase();
+    const matches = memoWordPool
+      .filter(w => w.toLowerCase().startsWith(prefix))
+      .slice(0, 6);
+
+    if (matches.length === 0) { hideMemoSuggestions(); return; }
+
+    el.memoSuggestions.innerHTML = '';
+    matches.forEach(word => {
+      const li = document.createElement('li');
+      li.className = 'memo-suggestion-item';
+      li.innerHTML = `<b>${word.slice(0, bounds.word.length)}</b>${word.slice(bounds.word.length)}`;
+      // mousedown (not click) + preventDefault so the input never blurs first.
+      li.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        const value = el.inputMemo.value;
+        const newValue = value.slice(0, bounds.start) + word + ' ' + value.slice(bounds.end);
+        el.inputMemo.value = newValue;
+        const cursor = bounds.start + word.length + 1;
+        el.inputMemo.setSelectionRange(cursor, cursor);
+        el.inputMemo.focus();
+        hideMemoSuggestions();
+      });
+      el.memoSuggestions.appendChild(li);
+    });
+    el.memoSuggestions.classList.remove('hidden');
+  }
+
+  el.inputMemo.addEventListener('input', () => {
+    if (memoBlurTimer) { clearTimeout(memoBlurTimer); memoBlurTimer = null; }
+    renderMemoSuggestions();
+  });
+  el.inputMemo.addEventListener('blur', () => {
+    memoBlurTimer = setTimeout(hideMemoSuggestions, 150);
+  });
 
   el.inputInstallmentEnabled.addEventListener('change', () => {
     el.inputInstallmentCount.classList.toggle('hidden', !el.inputInstallmentEnabled.checked);
@@ -941,6 +1019,9 @@
     } else {
       const original = state.editingEntryId ? Storage.getEntries().find(e => e.id === state.editingEntryId) : null;
       const groupId = original && original.installmentGroupId;
+      // Strip a trailing "(n/total)" tag so we can re-derive it per entry
+      // below rather than copying one entry's index onto every sibling.
+      const baseMemo = memo.replace(/\s*\(\d+\/\d+\)$/, '');
 
       const updated = {
         id: state.editingEntryId || undefined,
@@ -953,19 +1034,30 @@
         createdAt: Date.now(),
       };
       if (groupId) updated.installmentGroupId = groupId;
-      Storage.upsertEntry(updated);
 
-      // Category, payment method, and amount cascade to the rest of the
-      // series; date and memo (including the "(n/total)" tag) stay per-entry.
+      // Category, payment method, amount, and memo cascade to the whole
+      // series; only date stays per-entry. Memo gets its own "(n/total)"
+      // suffix re-derived per entry by chronological position (using the
+      // just-edited entry's NEW date, in case date was also changed this
+      // same submit), so editing the description doesn't stamp entry 1's
+      // "(1/5)" onto every sibling.
       if (groupId) {
-        Storage.getEntries()
-          .filter(e => e.installmentGroupId === groupId && e.id !== state.editingEntryId)
-          .forEach(sibling => {
-            sibling.categoryId = updated.categoryId;
-            sibling.method = updated.method;
-            sibling.amount = updated.amount;
-            Storage.upsertEntry(sibling);
-          });
+        const group = Storage.getEntries().filter(e => e.installmentGroupId === groupId);
+        const order = group
+          .map(e => ({ id: e.id, date: e.id === state.editingEntryId ? updated.date : e.date }))
+          .sort((a, b) => a.date.localeCompare(b.date))
+          .map(x => x.id);
+        const count = order.length;
+        order.forEach((id, i) => {
+          const target = id === state.editingEntryId ? updated : group.find(e => e.id === id);
+          target.categoryId = updated.categoryId;
+          target.method = updated.method;
+          target.amount = updated.amount;
+          target.memo = baseMemo ? `${baseMemo} (${i + 1}/${count})` : `(${i + 1}/${count})`;
+          Storage.upsertEntry(target);
+        });
+      } else {
+        Storage.upsertEntry(updated);
       }
     }
 

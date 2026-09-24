@@ -580,6 +580,32 @@ html, body {
   font-size: 16px;
 }
 
+.memo-field { position: relative; }
+.memo-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  list-style: none;
+  padding: 4px;
+  z-index: 5;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.memo-suggestions.hidden { display: none; }
+.memo-suggestion-item {
+  padding: 10px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+}
+.memo-suggestion-item:active { background: var(--panel); }
+.memo-suggestion-item b { color: var(--accent); }
+
 .installment-toggle-row {
   display: flex;
   align-items: center;
