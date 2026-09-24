@@ -51,9 +51,9 @@ html, body {
 }
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-summary { flex: 0 0 15%; justify-content: center; gap: 6px; overflow: hidden; }
-.panel-calendar { flex: 0 0 60%; overflow: hidden; padding-bottom: 4px; }
+.panel-calendar { flex: 0 0 53%; overflow: hidden; padding-bottom: 4px; }
 .panel-details {
-  flex: 0 0 25%;
+  flex: 0 0 32%;
   overflow: hidden;
   background: var(--panel);
   border-radius: var(--radius) var(--radius) 0 0;
