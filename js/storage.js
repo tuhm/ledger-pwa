@@ -46,6 +46,28 @@ const Storage = (() => {
 
   const CARRY_OVER_CATEGORY_ID = 'inc-carried-over';
 
+  // Seed monthly budgets (KRW), used the first time budgets are read — same
+  // seed-then-user-editable pattern as DEFAULT_CATEGORIES above. Any edit
+  // made via Settings persists the whole map, defaults and all, so this
+  // only matters until the first edit. Flexible intentionally has none.
+  const DEFAULT_BUDGETS = {
+    'exp-food': 500000,
+    'exp-beauty': 210000,
+    'exp-clothing': 250000,
+    'exp-health': 270000,
+    'exp-apps-entertainment': 80000,
+    'exp-education': 60000,
+    'exp-transport': 110000,
+    'exp-supplies': 70000,
+    'exp-medical': 60000,
+    'exp-utility': 1000000,
+    'exp-electronics': 40000,
+    'exp-donation': 50000,
+    'exp-gift': 50000,
+    'exp-weddings-funerals': 100000,
+    'exp-family': 500000,
+  };
+
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -162,7 +184,7 @@ const Storage = (() => {
   // Monthly budgets — { [categoryId]: amount }. Only meaningful for expense
   // categories. Same budget applies every month (no per-month variation).
   function getBudgets() {
-    return read(KEYS.budgets, {});
+    return read(KEYS.budgets, DEFAULT_BUDGETS);
   }
 
   function getBudget(categoryId) {
