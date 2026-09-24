@@ -848,14 +848,14 @@
     el.inputInstallmentCount.classList.add('hidden');
 
     // Installment entries: type is locked (always expense, can't be
-    // reassigned), and category/payment/amount/memo edits cascade to the
-    // whole series while only date stays per-entry — surfaced via a hint.
+    // reassigned), and category/payment/amount edits cascade to the whole
+    // series while date and memo stay per-entry — surfaced via a hint.
     const groupId = entry && entry.installmentGroupId;
     el.typeBtns.forEach(b => { b.disabled = !!groupId; });
     if (groupId) {
       const count = Storage.getEntries().filter(e => e.installmentGroupId === groupId).length;
       el.installmentEditHint.textContent =
-        `Part of a ${count}-month installment series. Category, payment, amount, and memo changes apply to all ${count} entries. Date only changes this one.`;
+        `Part of a ${count}-month installment series. Category, payment, and amount changes apply to all ${count} entries. Date and memo only change this one.`;
       el.installmentEditHint.classList.remove('hidden');
     } else {
       el.installmentEditHint.classList.add('hidden');
@@ -1019,9 +1019,6 @@
     } else {
       const original = state.editingEntryId ? Storage.getEntries().find(e => e.id === state.editingEntryId) : null;
       const groupId = original && original.installmentGroupId;
-      // Strip a trailing "(n/total)" tag so we can re-derive it per entry
-      // below rather than copying one entry's index onto every sibling.
-      const baseMemo = memo.replace(/\s*\(\d+\/\d+\)$/, '');
 
       const updated = {
         id: state.editingEntryId || undefined,
@@ -1034,30 +1031,19 @@
         createdAt: Date.now(),
       };
       if (groupId) updated.installmentGroupId = groupId;
+      Storage.upsertEntry(updated);
 
-      // Category, payment method, amount, and memo cascade to the whole
-      // series; only date stays per-entry. Memo gets its own "(n/total)"
-      // suffix re-derived per entry by chronological position (using the
-      // just-edited entry's NEW date, in case date was also changed this
-      // same submit), so editing the description doesn't stamp entry 1's
-      // "(1/5)" onto every sibling.
+      // Category, payment method, and amount cascade to the rest of the
+      // series; date and memo stay per-entry.
       if (groupId) {
-        const group = Storage.getEntries().filter(e => e.installmentGroupId === groupId);
-        const order = group
-          .map(e => ({ id: e.id, date: e.id === state.editingEntryId ? updated.date : e.date }))
-          .sort((a, b) => a.date.localeCompare(b.date))
-          .map(x => x.id);
-        const count = order.length;
-        order.forEach((id, i) => {
-          const target = id === state.editingEntryId ? updated : group.find(e => e.id === id);
-          target.categoryId = updated.categoryId;
-          target.method = updated.method;
-          target.amount = updated.amount;
-          target.memo = baseMemo ? `${baseMemo} (${i + 1}/${count})` : `(${i + 1}/${count})`;
-          Storage.upsertEntry(target);
-        });
-      } else {
-        Storage.upsertEntry(updated);
+        Storage.getEntries()
+          .filter(e => e.installmentGroupId === groupId && e.id !== state.editingEntryId)
+          .forEach(sibling => {
+            sibling.categoryId = updated.categoryId;
+            sibling.method = updated.method;
+            sibling.amount = updated.amount;
+            Storage.upsertEntry(sibling);
+          });
       }
     }
 

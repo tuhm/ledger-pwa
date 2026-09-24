@@ -159,13 +159,13 @@ one `installmentGroupId` and get a `(n/total)` suffix appended to their memo.
 
 **Series editing** — installments are managed as a linked group after
 creation:
-- Editing **category, payment method, amount, or memo** on *any* entry in
-  the series applies that change to **every** entry in the series. Memo's
-  `(n/total)` tag is re-derived per entry by chronological date order (not
-  copied verbatim), so editing the description doesn't stamp one entry's
-  index onto its siblings.
-- Editing **date** only changes that single entry; the rest of the series
-  is untouched.
+- Editing **category, payment method, or amount** on *any* entry in the
+  series applies that change verbatim to **every** entry in the series
+  (e.g. editing one entry's amount to ₩7,000 sets all entries to ₩7,000 —
+  it's a direct overwrite, not a re-split of a total).
+- Editing **date or memo** only changes that single entry; the rest of the
+  series is untouched. (The `(n/total)` memo tag is set once at creation
+  and is otherwise just plain per-entry text from then on.)
 - The **number of installments cannot be changed** after creation — delete
   the whole series (see below) and recreate it instead.
 - **Deleting any one installment deletes the entire series**, with a
