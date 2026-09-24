@@ -913,7 +913,7 @@
     const prefix = bounds.word.toLowerCase();
     const matches = memoWordPool
       .filter(w => w.toLowerCase().startsWith(prefix))
-      .slice(0, 6);
+      .slice(0, 2);
 
     if (matches.length === 0) { hideMemoSuggestions(); return; }
 
