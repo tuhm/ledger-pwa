@@ -1124,9 +1124,23 @@
   });
 
   // ---------- Service worker ----------
+  // Browsers throttle SW update checks to ~once/24h by default. Force an
+  // immediate check on every launch instead, and reload once (only once,
+  // guarded) the moment a newly-updated worker takes control, so a fresh
+  // app open always shows the latest deploy without the user having to
+  // force-quit/reopen multiple times.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration failed', err));
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => reg.update())
+        .catch(err => console.error('SW registration failed', err));
+    });
+
+    let reloadedForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloadedForUpdate) return;
+      reloadedForUpdate = true;
+      location.reload();
     });
   }
 
