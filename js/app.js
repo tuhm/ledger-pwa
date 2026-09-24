@@ -1175,8 +1175,11 @@
     }
 
     // Category-level monthly summary (like the Summary page), not raw entries.
-    const header = ['Month', 'Category', 'Amount (KRW)'];
+    // Every expense category is included each month (even at ₩0 actual) so
+    // budget/over-under stays visible for untouched categories too.
+    const header = ['Month', 'Category', 'Actual (KRW)', 'Budget (KRW)', 'Over/Under (KRW)'];
     const lines = [header.map(csvField).join(',')];
+    const expenseCategories = Storage.getCategories().filter(c => c.type === 'expense');
 
     let y = Number(el.exportFromYear.value), m = Number(el.exportFromMonth.value);
     const endY = toYear, endM = toMonth;
@@ -1186,10 +1189,15 @@
         byCat[e.categoryId] = (byCat[e.categoryId] || 0) + Number(e.amount);
       });
       const monthTag = `${y}-${pad(m + 1)}`;
-      Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]).forEach(catId => {
-        const cat = categoryById(catId);
-        lines.push([monthTag, cat ? cat.name : '', byCat[catId]].map(csvField).join(','));
-      });
+      expenseCategories
+        .slice()
+        .sort((a, b) => (byCat[b.id] || 0) - (byCat[a.id] || 0))
+        .forEach(cat => {
+          const actual = byCat[cat.id] || 0;
+          const budget = Storage.getBudget(cat.id);
+          const overUnder = budget > 0 ? budget - actual : '';
+          lines.push([monthTag, cat.name, actual, budget > 0 ? budget : '', overUnder].map(csvField).join(','));
+        });
       m += 1;
       if (m > 11) { m = 0; y += 1; }
     }
