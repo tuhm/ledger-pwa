@@ -15,7 +15,8 @@ committed to the repo; only app code)
 - `js/storage.js` — data layer (localStorage read/write).
 - `js/lock.js` — PIN lock screen, self-contained module (`LedgerLock`).
 - `js/app.js` — everything else: rendering, state, event wiring.
-- `sw.js` — service worker, network-first (falls back to cache when offline).
+- `sw.js` — service worker, network-first (falls back to cache when offline),
+  forces an update check on every launch (see PWA section).
 - `manifest.json` — PWA manifest (standalone display, piggy-face icon).
 - Deployed via GitHub Pages from the `main` branch.
 
@@ -26,8 +27,8 @@ All data in `localStorage`, plain JSON, under these keys:
 | Key | Shape | Notes |
 |---|---|---|
 | `ledger.entries` | `Entry[]` | all transactions |
-| `ledger.categories` | `Category[]` | seeded from a default list on first run, then user-editable |
-| `ledger.budgets` | `{ [categoryId]: number }` | monthly budget per expense category |
+| `ledger.categories` | `Category[]` | seeded from a default list on first read, then fully user-editable via Settings |
+| `ledger.budgets` | `{ [categoryId]: number }` | monthly budget per expense category; seeded with real starting values (see Budgets below), then user-editable |
 | `ledger.pinHash` | `string` (SHA-256 hex) | gates app access |
 
 **Entry**
@@ -50,30 +51,38 @@ All data in `localStorage`, plain JSON, under these keys:
 { id: string, name: string, type: 'expense' | 'income' | 'transfer' }
 ```
 `name` is a single string combining icon + label, e.g. `"🍽️ Foods"` (split
-on the first space for editing). The `inc-carried-over` category is
+on the first space for editing). Seeded from `DEFAULT_CATEGORIES` in
+`storage.js` the first time `ledger.categories` is read; from then on the
+live list is whatever's in localStorage, fully managed from the Settings
+page (add / rename / re-icon / delete). The `inc-carried-over` category is
 system-managed (see Balance below) — excluded from the entry form's
-category picker and from the Categories management page.
+category picker and from the Settings page.
 
 ## Screens
 
 ### 1. Calendar (`#screen-calendar`) — default screen, first bottom tab
 
-Fixed three-panel layout, no page-level scroll, panels sized 15% / 70% / 15%
-of the available height:
+Fixed three-panel layout, no page-level scroll, panels sized **15% / 53% /
+32%** (summary / calendar / day-details) of the available height — the
+calendar panel is deliberately compact since a day cell only ever needs a
+day number + up to 3 amount lines.
 
-- **Top panel** — month nav (‹ month-year ›), action icons (🏷️ Categories,
-  ⬇ Export, ＋ Add), and a 2×2 summary tile grid: **Income | Cash Exp** /
+- **Top panel** — month nav (‹ month-year ›), action icons (🏷️ Settings,
+  ⬇ Export), and a 2×2 summary tile grid: **Income | Cash Exp** /
   **Balance | Card Exp**. Tapping the tile grid jumps to the Summary tab.
+  There is no "+" button here — adding an entry happens from the day panel
+  below (see next).
 - **Middle panel** — 7-column calendar grid. Each day cell shows the day
   number and up to 4 stacked amount lines (income +green, cash expense red,
   card expense blue, transfer violet) for that day, omitting any that are
   zero. Today is outlined in accent color; the selected day has a solid
   accent border. **Swipe left/right** on the grid changes month (same as
-  the ‹ › buttons). Tapping a day selects it.
+  the ‹ › buttons, and same as Summary's month nav). Tapping a day selects it.
 - **Bottom panel** — entries for the selected day, each showing category,
   payment method (or "↔ Balance deduction" / "Automatic" for transfers /
   carried-over), memo, and amount. Scrolls internally if there are many.
-  "+ Add" here opens the entry form pre-dated to that day.
+  A large circular **+** button (44px, top-right of this panel) is the
+  **sole entry point** for adding a new entry, pre-dated to the selected day.
 
 **Top-tile semantics** (all for the *displayed month*, independent of which
 day is selected within it):
@@ -105,11 +114,11 @@ category's type (green/red/violet). Expense categories with a budget show
 a dashed horizontal reference line at the budget height. "‹ Back" returns
 to the Summary tab.
 
-### 4. Categories (`#screen-categories`) — reached via 🏷️ icon on Calendar
+### 4. Settings (`#screen-categories`, page title "Settings") — reached via 🏷️ icon on Calendar
 
-Full CRUD for categories, grouped into Expense / Income / Transfer lists
-(Carried Over excluded). "+" opens the add form; tapping a row opens it
-pre-filled for editing.
+Full CRUD for categories and budgets, grouped into Expense / Income /
+Transfer lists (Carried Over excluded). "+" opens the add form; tapping a
+row opens it pre-filled for editing.
 
 - **Add**: pick type (Expense/Income/Transfer — locked after creation),
   icon (any text, typically an emoji), name, and (expense only) a monthly
@@ -126,13 +135,17 @@ new one) and the **full JSON backup** export/import buttons (see below).
 ## Entry form (modal, shared for add/edit)
 
 Fields: Type (Expense/Income/Transfer — 3-way toggle), Date, Category
-(filtered by type), Amount (₩), Payment method (Card/Cash — expense only),
-Installments (expense-only, new-entry-only — see below), Memo (optional).
+(filtered by type), Amount (₩), Payment method (**Card/Cash**, in that
+order, Card is the default — expense only), Installments (expense-only,
+new-entry-only — see below), Memo (optional, with autocomplete — see below).
 
 - Tapping the dimmed backdrop behind the sheet cancels it, same as the
-  Cancel button (applies to every modal in the app).
-- Editing an existing entry never shows the installment option, and type
-  changes are otherwise unrestricted.
+  Cancel button (applies to every modal in the app: entry, export,
+  category).
+- Editing an existing entry never shows the installment option. If the
+  entry being edited belongs to an installment series, the Type toggle is
+  **disabled** (locked to Expense) and a hint banner explains what cascades
+  (see Installments below).
 
 ### Installments
 
@@ -141,11 +154,46 @@ entering a month count (2–120) divides the amount evenly across that many
 consecutive months, on the same day-of-month as the original date,
 clamping to the target month's length when needed (e.g. Oct 31 → Nov 30 →
 Dec 31 → Jan 31 → Feb 28). Any remainder from integer division is added to
-the first installment so the total matches exactly. Payment method and
-category are identical across all installments. Each gets a `(n/total)`
-suffix appended to its memo, and all share the same `installmentGroupId`.
-**Deleting any one installment deletes the entire series** (with a confirm
-showing the total count).
+the first installment so the total matches exactly. All installments share
+one `installmentGroupId` and get a `(n/total)` suffix appended to their memo.
+
+**Series editing** — installments are managed as a linked group after
+creation:
+- Editing **category, payment method, amount, or memo** on *any* entry in
+  the series applies that change to **every** entry in the series. Memo's
+  `(n/total)` tag is re-derived per entry by chronological date order (not
+  copied verbatim), so editing the description doesn't stamp one entry's
+  index onto its siblings.
+- Editing **date** only changes that single entry; the rest of the series
+  is untouched.
+- The **number of installments cannot be changed** after creation — delete
+  the whole series (see below) and recreate it instead.
+- **Deleting any one installment deletes the entire series**, with a
+  confirm showing the total entry count.
+- Note: entries created before this series-linking existed have no
+  `installmentGroupId` and can't retroactively cascade — only entries
+  created (or fully recreated) after the feature shipped are linked.
+
+### Memo autocomplete
+
+As you type in the Memo field, it suggests up to **2** words pulled only
+from memos already stored on-device (no external dictionary, nothing sent
+anywhere) — matched by prefix against whatever word you're currently
+typing (the text since the last space). A trailing `(n/total)` installment
+tag is stripped before words are extracted, so those don't pollute
+suggestions. Tapping a suggestion completes just that word (not the whole
+memo) and leaves the cursor ready to keep typing.
+
+## Budgets
+
+Monthly budget per expense category, stored in `ledger.budgets`. Seeded via
+`DEFAULT_BUDGETS` in `storage.js` (same seed-then-user-editable pattern as
+categories) with real starting values — current seed totals ₩3,350,000
+across all expense categories except Flexible, which intentionally has
+none. Any edit made via Settings persists the whole budgets map (defaults
+included), so the seed only matters until the first edit is saved. Budgets
+show up in two places: per-category on the Summary page (actual vs. budget,
+under/over), and as an aggregate on the Expenses section total.
 
 ## Balance & Carried Over
 
@@ -178,7 +226,7 @@ Two entirely separate export features:
    `Month, Category, Amount (KRW)` — category-level monthly totals for
    expenses only, matching what the Summary page shows. No individual
    transactions, no income/transfers.
-2. **Full JSON backup** (Categories screen, bottom buttons) — exports/imports
+2. **Full JSON backup** (Settings screen, bottom buttons) — exports/imports
    *everything*: entries, categories, budgets, and the PIN hash, via the
    same share-or-download pattern. Import requires an explicit confirm
    (it replaces all local data) and reloads the app afterward. This is the
@@ -186,13 +234,12 @@ Two entirely separate export features:
 
 ## PIN lock (`js/lock.js`)
 
-A full-screen numeric keypad gate shown on every fresh app launch (not
-persisted across reloads within a session in any special way — it's simply
-always checked on load). First run prompts to set a 4-digit PIN (enter
-twice to confirm); later runs prompt to enter it. Wrong PIN shakes and
-clears. "Forgot PIN? Erase app data" on the unlock screen wipes everything
-(entries, categories, budgets, PIN) with a confirm, since there's no
-password recovery — only a full reset or restoring an old JSON backup.
+A full-screen numeric keypad gate (84px keys) shown on every fresh app
+launch. First run prompts to set a 4-digit PIN (enter twice to confirm);
+later runs prompt to enter it. Wrong PIN shakes and clears. "Forgot PIN?
+Erase app data" on the unlock screen wipes everything (entries, categories,
+budgets, PIN) with a confirm, since there's no password recovery — only a
+full reset or restoring an old JSON backup.
 
 This is explicitly a **casual-access deterrent**, not real security — it's
 all client-side, the source is public, and a 4-digit PIN hash is trivially
@@ -206,8 +253,12 @@ brute-forceable if a backup file were to leak.
   creates a **separate, isolated storage silo** on iOS (a known platform
   quirk) — always reuse the existing icon; never delete-and-re-add casually.
 - `sw.js` is network-first: every load tries the network first and falls
-  back to cache only when offline, so code pushes appear on the very next
-  reopen (no manual update step, ever). Bump `CACHE_NAME` on deploy to
+  back to cache only when offline. On top of that, `app.js` explicitly
+  calls `registration.update()` on every launch and reloads once (guarded
+  against loops) the moment a new worker takes control — because browsers
+  throttle service worker update checks to roughly once per 24h by default,
+  which otherwise made a freshly-deployed change invisible for up to a day
+  even after force-quitting and reopening. Bump `CACHE_NAME` on deploy to
   invalidate old cached assets.
 - No servers, no accounts, no analytics. The GitHub repo is public (required
   for free GitHub Pages) but contains no user data — only app code.
