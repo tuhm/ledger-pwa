@@ -5,7 +5,7 @@
     selectedDate: todayStr(),
     editingEntryId: null,
     modalType: 'expense',
-    modalMethod: 'cash',
+    modalMethod: 'card',
     detailCategoryId: null,
     detailYear: new Date().getFullYear(),
     editingCategoryId: null,
@@ -133,7 +133,9 @@
     installmentField: document.getElementById('installment-field'),
     inputInstallmentEnabled: document.getElementById('input-installment-enabled'),
     inputInstallmentCount: document.getElementById('input-installment-count'),
-    typeBtns: document.querySelectorAll('.type-btn'),
+    entryTypeToggle: document.getElementById('entry-type-toggle'),
+    installmentEditHint: document.getElementById('installment-edit-hint'),
+    typeBtns: document.querySelectorAll('#entry-type-toggle .type-btn'),
     methodBtns: document.querySelectorAll('.method-btn'),
   };
 
@@ -832,7 +834,7 @@
     el.btnModalDelete.classList.toggle('hidden', !entry);
 
     setModalType(entry ? entry.type : 'expense');
-    setModalMethod(entry ? entry.method : 'cash');
+    setModalMethod(entry ? entry.method : 'card');
 
     el.inputDate.value = entry ? entry.date : dateForNew;
     el.inputAmount.value = entry ? entry.amount : '';
@@ -842,6 +844,20 @@
     el.inputInstallmentEnabled.checked = false;
     el.inputInstallmentCount.value = '';
     el.inputInstallmentCount.classList.add('hidden');
+
+    // Installment entries: type is locked (always expense, can't be
+    // reassigned), and category/payment/amount edits cascade to the whole
+    // series while date/memo stay per-entry — surfaced via a hint.
+    const groupId = entry && entry.installmentGroupId;
+    el.typeBtns.forEach(b => { b.disabled = !!groupId; });
+    if (groupId) {
+      const count = Storage.getEntries().filter(e => e.installmentGroupId === groupId).length;
+      el.installmentEditHint.textContent =
+        `Part of a ${count}-month installment series. Category, payment, and amount changes apply to all ${count} entries. Date only changes this one.`;
+      el.installmentEditHint.classList.remove('hidden');
+    } else {
+      el.installmentEditHint.classList.add('hidden');
+    }
 
     el.modal.classList.remove('hidden');
   }
@@ -924,7 +940,10 @@
         });
       }
     } else {
-      Storage.upsertEntry({
+      const original = state.editingEntryId ? Storage.getEntries().find(e => e.id === state.editingEntryId) : null;
+      const groupId = original && original.installmentGroupId;
+
+      const updated = {
         id: state.editingEntryId || undefined,
         date: baseDate,
         type: state.modalType,
@@ -933,7 +952,22 @@
         method: state.modalType === 'expense' ? state.modalMethod : null,
         memo,
         createdAt: Date.now(),
-      });
+      };
+      if (groupId) updated.installmentGroupId = groupId;
+      Storage.upsertEntry(updated);
+
+      // Category, payment method, and amount cascade to the rest of the
+      // series; date and memo (including the "(n/total)" tag) stay per-entry.
+      if (groupId) {
+        Storage.getEntries()
+          .filter(e => e.installmentGroupId === groupId && e.id !== state.editingEntryId)
+          .forEach(sibling => {
+            sibling.categoryId = updated.categoryId;
+            sibling.method = updated.method;
+            sibling.amount = updated.amount;
+            Storage.upsertEntry(sibling);
+          });
+      }
     }
 
     state.selectedDate = baseDate;

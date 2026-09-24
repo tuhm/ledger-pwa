@@ -549,6 +549,17 @@ html, body {
 .type-btn.active[data-type="income"] { border-color: var(--income); color: var(--income); }
 .type-btn.active[data-type="transfer"] { border-color: var(--transfer); color: var(--transfer); }
 .method-btn.active { border-color: var(--accent); color: var(--text); }
+.type-btn:disabled { opacity: 0.55; }
+
+.installment-edit-hint {
+  font-size: 12px;
+  color: var(--transfer);
+  background: rgba(177, 140, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: -6px 0 14px;
+}
+.installment-edit-hint.hidden { display: none; }
 
 .field {
   display: flex;
