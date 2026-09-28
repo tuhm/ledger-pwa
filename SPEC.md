@@ -100,8 +100,14 @@ month.
 
 Three sections, in this order: **Expenses, Income, Deductions**, each with
 a month nav header shared across the page. Every category of that type is
-always listed (even at ₩0), sorted by descending amount for the displayed
-month. Expense rows (and the Expenses section total) show a budget
+always listed (even at ₩0). Expense and Income rows use a **fixed display
+order** (`EXPENSE_SORT_ORDER` / `INCOME_SORT_ORDER` in `app.js`), not
+amount — e.g. Expenses always goes Utilities, Foods, Beauty, Clothing,
+Health, Transportation, Apps, Education, Electronics, Supplies, Medical,
+Gift, Weddings, Donation, Family, Flexible, regardless of what was actually
+spent that month. Any category not in the fixed list (e.g. a newly added
+custom one) falls to the end. Deductions (Transfer) still sorts by amount
+descending. Expense rows (and the Expenses section total) show a budget
 comparison line when a budget is set: `🎯 ₩budget · Under by ₩x` (blue) or
 `Over by ₩x` (red). Tapping any category row opens its yearly detail (see
 below).

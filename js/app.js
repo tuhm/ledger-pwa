@@ -11,6 +11,20 @@
     editingCategoryId: null,
   };
 
+  // Fixed display order for the Summary page's Expense/Income sections
+  // (overrides amount-based sorting). Categories not in a list fall to the
+  // end, so newly-added custom categories still show up.
+  const EXPENSE_SORT_ORDER = [
+    'exp-utility', 'exp-food', 'exp-beauty', 'exp-clothing', 'exp-health',
+    'exp-transport', 'exp-apps-entertainment', 'exp-education', 'exp-electronics',
+    'exp-supplies', 'exp-medical', 'exp-gift', 'exp-weddings-funerals',
+    'exp-donation', 'exp-family', 'exp-flexible',
+  ];
+  const INCOME_SORT_ORDER = [
+    'inc-salary', 'inc-asset-withdrawal', 'inc-pocket-money', 'inc-interest',
+    'inc-carried-over',
+  ];
+
   // ---------- Helpers ----------
   function pad(n) { return String(n).padStart(2, '0'); }
   function todayStr() {
@@ -355,8 +369,9 @@
     }
 
     // Always show every category of this type (even with ₩0 this month), so
-    // budgets/trends stay visible regardless of activity. Sorted by amount
-    // descending, highest spender/earner first.
+    // budgets/trends stay visible regardless of activity. Expense/Income use
+    // a fixed display order (EXPENSE_SORT_ORDER/INCOME_SORT_ORDER); Transfer
+    // still sorts by amount descending.
     function fillList(listEl, byCat, type, emptyText, withBudget) {
       listEl.innerHTML = '';
       const catIds = categories.filter(c => c.type === type).map(c => c.id);
@@ -364,7 +379,14 @@
         listEl.appendChild(emptyHint(emptyText));
         return;
       }
-      const sorted = catIds.slice().sort((a, b) => (byCat[b] || 0) - (byCat[a] || 0));
+      const fixedOrder = type === 'expense' ? EXPENSE_SORT_ORDER : type === 'income' ? INCOME_SORT_ORDER : null;
+      const sorted = catIds.slice().sort((a, b) => {
+        if (fixedOrder) {
+          const ai = fixedOrder.indexOf(a), bi = fixedOrder.indexOf(b);
+          return (ai === -1 ? fixedOrder.length : ai) - (bi === -1 ? fixedOrder.length : bi);
+        }
+        return (byCat[b] || 0) - (byCat[a] || 0);
+      });
       sorted.forEach(id => {
         const amount = byCat[id] || 0;
         let subText = null, subClass = '';
