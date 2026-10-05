@@ -31,6 +31,9 @@
     const d = new Date();
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
+  // Settings isn't tied to whichever month the calendar happens to be
+  // showing, so budget edits there always target the real current year.
+  function currentRealYear() { return new Date().getFullYear(); }
   function dateStr(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
   function lastDayOfMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
   function defaultDateForMonth(y, m) {
@@ -116,6 +119,7 @@
     inputCategoryIcon: document.getElementById('input-category-icon'),
     inputCategoryName: document.getElementById('input-category-name'),
     categoryBudgetField: document.getElementById('category-budget-field'),
+    categoryBudgetLabel: document.getElementById('category-budget-label'),
     inputCategoryBudget: document.getElementById('input-category-budget'),
     categoryDeletePanel: document.getElementById('category-delete-panel'),
     categoryDeleteInfo: document.getElementById('category-delete-info'),
@@ -391,7 +395,7 @@
         const amount = byCat[id] || 0;
         let subText = null, subClass = '';
         if (withBudget) {
-          const status = budgetStatus(amount, Storage.getBudget(id));
+          const status = budgetStatus(amount, Storage.getBudget(id, state.year));
           if (status) { subText = status.text; subClass = status.cls; }
         }
         listEl.appendChild(breakdownRow({
@@ -407,7 +411,7 @@
 
     // Overall expense budget line (sum of categories that have a budget set).
     const expenseCategoryIds = categories.filter(c => c.type === 'expense').map(c => c.id);
-    const totalBudget = expenseCategoryIds.reduce((sum, id) => sum + Storage.getBudget(id), 0);
+    const totalBudget = expenseCategoryIds.reduce((sum, id) => sum + Storage.getBudget(id, state.year), 0);
     if (totalBudget > 0) {
       const status = budgetStatus(expenseTotal, totalBudget);
       el.summaryExpenseBudgetLine.innerHTML =
@@ -503,7 +507,7 @@
     const yearTotal = totals.reduce((a, b) => a + b, 0);
     el.detailCategoryTotal.textContent = `Year total: ${formatKRW(yearTotal)}`;
 
-    const budget = cat && cat.type === 'expense' ? Storage.getBudget(cat.id) : 0;
+    const budget = cat && cat.type === 'expense' ? Storage.getBudget(cat.id, state.detailYear) : 0;
     const scaleMax = Math.max(...totals, budget, 1);
 
     el.barChart.innerHTML = '';
@@ -568,7 +572,7 @@
         return;
       }
       catsOfType.forEach(c => {
-        const budget = type === 'expense' ? Storage.getBudget(c.id) : 0;
+        const budget = type === 'expense' ? Storage.getBudget(c.id, currentRealYear()) : 0;
         lists[type].appendChild(breakdownRow({
           name: c.name,
           subText: budget ? `🎯 Budget ${formatKRW(budget)}` : null,
@@ -600,7 +604,8 @@
     const { icon, label } = splitCategoryName(category ? category.name : '');
     el.inputCategoryIcon.value = icon;
     el.inputCategoryName.value = label;
-    el.inputCategoryBudget.value = category && type === 'expense' ? (Storage.getBudget(category.id) || '') : '';
+    el.inputCategoryBudget.value = category && type === 'expense' ? (Storage.getBudget(category.id, currentRealYear()) || '') : '';
+    el.categoryBudgetLabel.textContent = `${currentRealYear()} Monthly Budget (₩, optional)`;
 
     el.categoryModal.classList.remove('hidden');
   }
@@ -680,14 +685,14 @@
       const existing = categoryById(state.editingCategoryId);
       Storage.updateCategory(state.editingCategoryId, { name });
       if (existing.type === 'expense') {
-        Storage.setBudget(state.editingCategoryId, Number(el.inputCategoryBudget.value) || 0);
+        Storage.setBudget(state.editingCategoryId, Number(el.inputCategoryBudget.value) || 0, currentRealYear());
       }
     } else {
       const activeBtn = el.categoryTypeToggle.querySelector('.type-btn.active');
       const type = activeBtn ? activeBtn.dataset.type : 'expense';
       const newId = Storage.addCategory({ name, type });
       if (type === 'expense') {
-        Storage.setBudget(newId, Number(el.inputCategoryBudget.value) || 0);
+        Storage.setBudget(newId, Number(el.inputCategoryBudget.value) || 0, currentRealYear());
       }
     }
 
@@ -1202,7 +1207,7 @@
         .sort((a, b) => (byCat[b.id] || 0) - (byCat[a.id] || 0))
         .forEach(cat => {
           const actual = byCat[cat.id] || 0;
-          const budget = Storage.getBudget(cat.id);
+          const budget = Storage.getBudget(cat.id, y);
           const overUnder = budget > 0 ? budget - actual : '';
           lines.push([monthTag, cat.name, actual, budget > 0 ? budget : '', overUnder].map(csvField).join(','));
         });

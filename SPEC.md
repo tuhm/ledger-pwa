@@ -140,10 +140,11 @@ new one) and the **full JSON backup** export/import buttons (see below).
 
 ## Entry form (modal, shared for add/edit)
 
-Fields: Type (Expense/Income/Transfer — 3-way toggle), Date, Category
-(filtered by type), Amount (₩), Payment method (**Card/Cash**, in that
-order, Card is the default — expense only), Installments (expense-only,
-new-entry-only — see below), Memo (optional, with autocomplete — see below).
+Fields, in order: Type (Expense/Income/Transfer — 3-way toggle), Date,
+**Amount (₩)**, **Category** (filtered by type), Payment method
+(**Card/Cash**, in that order, Card is the default — expense only),
+Installments (expense-only, new-entry-only — see below), Memo (optional,
+with autocomplete — see below).
 
 - Tapping the dimmed backdrop behind the sheet cancels it, same as the
   Cancel button (applies to every modal in the app: entry, export,
@@ -192,14 +193,31 @@ memo) and leaves the cursor ready to keep typing.
 
 ## Budgets
 
-Monthly budget per expense category, stored in `ledger.budgets`. Seeded via
-`DEFAULT_BUDGETS` in `storage.js` (same seed-then-user-editable pattern as
-categories) with real starting values — current seed totals ₩3,350,000
-across all expense categories except Flexible, which intentionally has
-none. Any edit made via Settings persists the whole budgets map (defaults
-included), so the seed only matters until the first edit is saved. Budgets
-show up in two places: per-category on the Summary page (actual vs. budget,
-under/over), and as an aggregate on the Expenses section total.
+Monthly budget per expense category, **scoped by year**:
+`ledger.budgets` = `{ [year]: { [categoryId]: amount } }`. Editing a budget
+in Settings always writes an explicit snapshot under the **current real
+year** (`currentRealYear()` in `app.js`, independent of whatever month the
+calendar happens to be showing) — it never modifies a prior year's
+already-recorded values. A year with no explicit snapshot for a category
+inherits from the closest earlier year that has one (so a new year doesn't
+require re-entering every budget), falling back to the seed defaults
+(`DEFAULT_BUDGETS` in `storage.js`, seeded under whichever year first reads
+them) if nothing's ever been set. `Storage.getBudget(categoryId, year)` and
+`Storage.setBudget(categoryId, amount, year)` both take an explicit year;
+every call site passes the year relevant to its context (Summary/Calendar
+use `state.year`, the category detail chart uses `state.detailYear`,
+Settings and CSV export resolve per the month/year actually being shown or
+exported — see the file for exact call sites).
+
+A one-time migration (`migrateBudgetsIfFlat` in `storage.js`) detects the
+old flat `{ categoryId: amount }` shape (pre-dating year-scoping) and wraps
+it under the current year on first load, so no historical data is lost.
+
+Budgets show up in three places: per-category and as an Expenses-section
+aggregate on the Summary page (actual vs. budget, under/over), the dashed
+reference line on a category's yearly bar chart, and as Budget/Over-Under
+columns in the CSV export — each using the budget that was actually in
+effect for that specific month/year, not today's current value.
 
 ## Balance & Carried Over
 

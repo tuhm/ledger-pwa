@@ -207,13 +207,13 @@
       </label>
 
       <label class="field">
-        <span>Category</span>
-        <select id="input-category" required></select>
+        <span>Amount (₩)</span>
+        <input type="number" id="input-amount" inputmode="numeric" min="0" step="1" placeholder="0" required>
       </label>
 
       <label class="field">
-        <span>Amount (₩)</span>
-        <input type="number" id="input-amount" inputmode="numeric" min="0" step="1" placeholder="0" required>
+        <span>Category</span>
+        <select id="input-category" required></select>
       </label>
 
       <div class="field" id="method-field">
@@ -306,7 +306,7 @@
       </label>
 
       <label class="field" id="category-budget-field">
-        <span>Monthly Budget (₩, optional)</span>
+        <span id="category-budget-label">Monthly Budget (₩, optional)</span>
         <input type="number" id="input-category-budget" inputmode="numeric" min="0" placeholder="0">
       </label>
 

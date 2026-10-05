@@ -40,7 +40,9 @@ const Storage = (() => {
     { id: 'inc-asset-withdrawal', name: '🏦 Asset Withdrawal', type: 'income' },
     { id: 'inc-carried-over', name: '🔁 Carried Over', type: 'income' },
     // Transfers (deduct Balance, not counted as expenses)
-    { id: 'trf-investment', name: '📊 Investment', type: 'transfer' },
+    { id: 'trf-pension', name: '👴 Pension', type: 'transfer' },
+    { id: 'trf-stocks', name: '📈 Stocks', type: 'transfer' },
+    { id: 'trf-fx', name: '💱 FX', type: 'transfer' },
     { id: 'trf-card-payment', name: '💳 Card Payment', type: 'transfer' },
   ];
 
@@ -181,21 +183,65 @@ const Storage = (() => {
     localStorage.removeItem(KEYS.categories);
   }
 
-  // Monthly budgets — { [categoryId]: amount }. Only meaningful for expense
-  // categories. Same budget applies every month (no per-month variation).
-  function getBudgets() {
-    return read(KEYS.budgets, DEFAULT_BUDGETS);
+  // Monthly budgets, scoped by YEAR — { [year]: { [categoryId]: amount } }.
+  // Only meaningful for expense categories; same budget applies to every
+  // month within that year. Editing a budget writes an explicit snapshot
+  // under the CURRENT real year only, so prior years' already-recorded
+  // budgets are never touched by a later edit. A year with no explicit
+  // snapshot inherits from the closest earlier year that has one (so you
+  // don't have to re-enter everything each January) — falling all the way
+  // back to the seed defaults if nothing's ever been set.
+  function currentYear() { return new Date().getFullYear(); }
+
+  // One-time migration: older versions stored a flat { categoryId: amount }
+  // map with no year dimension. If that shape is detected, wrap it under
+  // the current year so existing data isn't lost.
+  (function migrateBudgetsIfFlat() {
+    const raw = localStorage.getItem(KEYS.budgets);
+    if (!raw) return;
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch (e) { return; }
+    if (!parsed || typeof parsed !== 'object') return;
+    const firstKey = Object.keys(parsed)[0];
+    if (firstKey === undefined) return;
+    if (typeof parsed[firstKey] === 'number') {
+      write(KEYS.budgets, { [currentYear()]: parsed });
+    }
+  })();
+
+  function getBudgetsByYear() {
+    return read(KEYS.budgets, { [currentYear()]: DEFAULT_BUDGETS });
   }
 
-  function getBudget(categoryId) {
-    return getBudgets()[categoryId] || 0;
+  function getBudget(categoryId, year) {
+    year = year || currentYear();
+    const byYear = getBudgetsByYear();
+    const candidateYears = Object.keys(byYear).map(Number).filter(y => y <= year).sort((a, b) => b - a);
+    for (const y of candidateYears) {
+      if (byYear[y] && byYear[y][categoryId] != null) return byYear[y][categoryId];
+    }
+    return 0;
   }
 
-  function setBudget(categoryId, amount) {
-    const budgets = getBudgets();
-    if (amount > 0) budgets[categoryId] = amount;
-    else delete budgets[categoryId];
-    write(KEYS.budgets, budgets);
+  // Effective (inherited) budgets for every expense category in a given
+  // year — e.g. for computing a month's total budget.
+  function getBudgets(year) {
+    year = year || currentYear();
+    const result = {};
+    getCategories().filter(c => c.type === 'expense').forEach(c => {
+      const amt = getBudget(c.id, year);
+      if (amt > 0) result[c.id] = amt;
+    });
+    return result;
+  }
+
+  function setBudget(categoryId, amount, year) {
+    year = year || currentYear();
+    const byYear = getBudgetsByYear();
+    if (!byYear[year]) byYear[year] = {};
+    if (amount > 0) byYear[year][categoryId] = amount;
+    else delete byYear[year][categoryId];
+    write(KEYS.budgets, byYear);
   }
 
   // Full backup — everything needed to restore the app on a new device or
@@ -208,7 +254,7 @@ const Storage = (() => {
     return JSON.stringify({
       entries: getEntries(),
       categories: getCategories(),
-      budgets: getBudgets(),
+      budgets: getBudgetsByYear(), // full { year: { categoryId: amount } } history, not just one year's effective view
       pinHash: getPinHash(),
       exportedAt: new Date().toISOString(),
     }, null, 2);
