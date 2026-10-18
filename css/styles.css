@@ -293,6 +293,14 @@ html, body {
 .summary-topbar { padding: 2px 8px 8px; }
 .summary-topbar .month-nav h1 { font-size: 18px; min-width: 160px; }
 
+.summary-year-subtitle {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: -4px 0 8px;
+}
+.summary-year-subtitle.hidden { display: none; }
+
 .summary-view-toggle {
   display: flex;
   gap: 8px;

@@ -94,6 +94,7 @@
     summaryMonthlyContent: document.getElementById('summary-monthly-content'),
     summaryYearlyContent: document.getElementById('summary-yearly-content'),
     summaryYearLabel: document.getElementById('summary-year-label'),
+    summaryYearSubtitle: document.getElementById('summary-year-subtitle'),
     btnSumPrevYear: document.getElementById('btn-sum-prev-year'),
     btnSumNextYear: document.getElementById('btn-sum-next-year'),
     yearlyNetAmount: document.getElementById('yearly-net-amount'),
@@ -438,23 +439,34 @@
   }
 
   // ---------- Yearly summary ----------
-  // Not a sum of monthly summaries — a budget-based yearly view:
-  //  Inflow:  Salary (annualized target) / Over-time (actual - target) /
-  //           Other Income (everything but salary, tax refund, asset
-  //           withdrawal, carried-over) / Tax Refund.
-  //  Outflow: Monthly Expense (sum of annualized budgets, for categories
-  //           that have one) / Over-budget (actual - annualized budget,
+  // An accumulated YEAR-TO-DATE snapshot, not a full calendar year and not
+  // a sum of 12 monthly summaries. For ANY year selected, it always covers
+  // Jan 1 through the last day of the REAL current month (e.g. viewing in
+  // October always sums Jan-Oct — 10 months — whether that's this year or
+  // a past one; a future month never contributes even in a past year).
+  //  Inflow:  Salary (monthly target x months-to-date) / Over-time (actual
+  //           - target) / Other Income (everything but salary, tax refund,
+  //           asset withdrawal, carried-over) / Tax Refund.
+  //  Outflow: Monthly Expense (sum of monthly-budget x months-to-date, for
+  //           categories that have one) / Over-budget (actual - that,
   //           summed, signed) / each un-budgeted expense category on its
   //           own / Pension (transfer).
   //  Net:     Inflow total - Outflow total, shown at the top.
+  function monthsElapsedCount() {
+    return new Date().getMonth() + 1; // 1-indexed; constant regardless of which year is being viewed
+  }
+
   function renderYearlySummary() {
     const year = state.year;
     el.summaryYearLabel.textContent = year;
     const categories = Storage.getCategories();
-    const yearEntries = Storage.getEntriesForYear(year);
+    const monthsCount = monthsElapsedCount();
+    const cutoffDate = `${year}-${pad(monthsCount)}-31`; // lexicographic cutoff; safe since no month exceeds 31 days
+    el.summaryYearSubtitle.textContent = `Through ${MONTH_SHORT[monthsCount - 1]} (${monthsCount} mo.)`;
+    const yearEntries = Storage.getEntriesForYear(year).filter(e => e.date <= cutoffDate);
 
     // ---- Inflow ----
-    const salaryAnnualTarget = Storage.getBudget('inc-salary', year) * 12;
+    const salaryTargetToDate = Storage.getBudget('inc-salary', year) * monthsCount;
     const excludedIncomeIds = new Set(['inc-salary', 'inc-tax-refund', 'inc-asset-withdrawal', Storage.CARRY_OVER_CATEGORY_ID]);
     let salaryActual = 0, taxRefundActual = 0, otherIncomeActual = 0;
     yearEntries.filter(e => e.type === 'income').forEach(e => {
@@ -464,13 +476,13 @@
       else if (!excludedIncomeIds.has(e.categoryId)) otherIncomeActual += amt;
       // asset withdrawal + carried-over: intentionally ignored
     });
-    const overTime = salaryActual - salaryAnnualTarget;
-    const totalInflow = salaryAnnualTarget + overTime + otherIncomeActual + taxRefundActual;
+    const overTime = salaryActual - salaryTargetToDate;
+    const totalInflow = salaryTargetToDate + overTime + otherIncomeActual + taxRefundActual;
 
     el.yearlyInflowTotal.textContent = formatKRW(totalInflow);
     el.yearlyInflowList.innerHTML = '';
     [
-      ['💰 Salary', salaryAnnualTarget],
+      ['💰 Salary', salaryTargetToDate],
       ['⏱️ Over-time', overTime],
       ['💵 Other Income', otherIncomeActual],
       ['🧾 Tax Refund', taxRefundActual],
@@ -491,9 +503,9 @@
     expenseCats.forEach(c => {
       const monthlyBudget = Storage.getBudget(c.id, year);
       if (monthlyBudget > 0) {
-        const annualBudget = monthlyBudget * 12;
-        monthlyExpenseTotal += annualBudget;
-        overBudgetTotal += (actualByCat[c.id] - annualBudget);
+        const budgetToDate = monthlyBudget * monthsCount;
+        monthlyExpenseTotal += budgetToDate;
+        overBudgetTotal += (actualByCat[c.id] - budgetToDate);
       } else {
         unbudgetedIds.push(c.id);
       }
@@ -539,6 +551,7 @@
   function renderSummaryScreen() {
     el.summaryMonthlyNav.classList.toggle('hidden', state.summaryView !== 'monthly');
     el.summaryYearlyNav.classList.toggle('hidden', state.summaryView !== 'yearly');
+    el.summaryYearSubtitle.classList.toggle('hidden', state.summaryView !== 'yearly');
     el.summaryMonthlyContent.classList.toggle('hidden', state.summaryView !== 'monthly');
     el.summaryYearlyContent.classList.toggle('hidden', state.summaryView !== 'yearly');
     if (state.summaryView === 'yearly') renderYearlySummary();

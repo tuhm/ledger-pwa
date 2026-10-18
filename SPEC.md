@@ -120,22 +120,30 @@ below).
 
 #### Yearly view
 
-**Not** a sum of the 12 monthly summaries — a budget-vs-actual view for the
-whole year, with year nav (‹ year ›, unbounded) and a **Yearly Net** banner
-at the top (Inflow total − Outflow total, green/red by sign).
+**Not** a full calendar year, and **not** a sum of the 12 monthly
+summaries — an accumulated **year-to-date** snapshot. For ANY year
+selected (year nav ‹ year ›, unbounded in both directions), it always
+covers Jan 1 through the last day of the **real current month**
+(`monthsElapsedCount()` in `app.js` = `new Date().getMonth() + 1`,
+independent of the selected year) — e.g. viewing in October always sums
+Jan–Oct (10 months), whether that's this year or a past one. A subtitle
+under the year header spells this out, e.g. "Through Oct (10 mo.)", and a
+**Yearly Net** banner at the top shows Inflow total − Outflow total
+(green/red by sign). Entries dated after that cutoff (e.g. a future month
+within the selected year) are excluded from every figure on this page.
 
 **Inflow** (always these 4 rows, in order):
-- **Salary** = that year's Salary monthly target (`Storage.getBudget('inc-salary', year)`) × 12 — same seed-then-editable annual-budget mechanism used for expense budgets, just applied to an income category.
-- **Over-time** = actual Salary-category total for the year − the Salary line above. Can go negative (shown unsigned-green, i.e. no `+` prefix, if actual fell short of target) — Salary + Over-time always nets back to the real actual Salary income.
-- **Other Income** = sum of every income entry **except** Salary, Tax Refund, Asset Withdrawal, and Carried Over (so Pocket Money + Interest + any custom income category land here).
-- **Tax Refund** = that category's actual yearly total.
+- **Salary** = Salary's monthly target for that year (`Storage.getBudget('inc-salary', year)`) × months-elapsed.
+- **Over-time** = actual Salary-category total (through the cutoff) − the Salary line above. Can go negative (shown unsigned-green, i.e. no `+` prefix, if actual fell short of target) — Salary + Over-time always nets back to the real actual Salary income to date.
+- **Other Income** = sum of every income entry (through the cutoff) **except** Salary, Tax Refund, Asset Withdrawal, and Carried Over (so Pocket Money + Interest + any custom income category land here).
+- **Tax Refund** = that category's actual total through the cutoff.
 - Asset Withdrawal and Carried Over are deliberately excluded entirely from the yearly view (not shown as rows, not counted in the total).
 
 **Outflow**:
-- **Monthly Expense** = sum, across every expense category **that has a budget set for that year**, of (that category's monthly budget × 12). This is the year's total *expected* spending, not actual.
-- **Over-budget** = sum, across those same budgeted categories, of (actual yearly total − annualized budget) — signed, so a net-under-budget year shows negative here.
-- Every expense category **without** a budget gets its own row at actual spend (in `EXPENSE_SORT_ORDER`), since there's no budget to compare against — e.g. Flexible, which never has a default budget.
-- **Pension** (`trf-pension`, a Transfer category) is added here too, at its actual yearly total — the only Transfer category that surfaces in the yearly summary.
+- **Monthly Expense** = sum, across every expense category **that has a budget set for that year**, of (that category's monthly budget × months-elapsed). This is the *expected* spending to date, not actual.
+- **Over-budget** = sum, across those same budgeted categories, of (actual total to date − that expected amount) — signed, so running under budget shows negative here.
+- Every expense category **without** a budget gets its own row at actual spend to date (in `EXPENSE_SORT_ORDER`), since there's no budget to compare against — e.g. Flexible, which never has a default budget.
+- **Pension** (`trf-pension`, a Transfer category) is added here too, at its actual total to date — the only Transfer category that surfaces in the yearly summary.
 
 All yearly category rows are tappable, opening the same category-detail bar chart as the monthly view.
 
