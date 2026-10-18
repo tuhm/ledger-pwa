@@ -146,6 +146,7 @@ html, body {
 .summary-item.income span:last-child { color: var(--income); }
 .summary-item.cash-expense span:last-child { color: var(--expense); }
 .summary-item.card-expense span:last-child { color: var(--card-expense); }
+.summary-item.net span:last-child { font-size: 16px; }
 
 /* ---------- Calendar ---------- */
 .weekday-row {
@@ -444,6 +445,18 @@ html, body {
   border-top: 2px dashed var(--text-dim);
 }
 .bar-month { font-size: 10px; color: var(--text-dim); }
+.bar-col { cursor: pointer; border-radius: 6px; padding-top: 2px; }
+.bar-col.selected .bar-month { color: var(--accent); font-weight: 700; }
+.bar-col.selected .bar-track { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.detail-entries-section { margin-top: 24px; }
+.detail-entries-section h3 {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin: 0 0 10px;
+}
 
 /* ---------- Categories page ---------- */
 .settings-actions {
@@ -531,7 +544,7 @@ html, body {
   font-weight: 500;
 }
 .lock-key:active { background: var(--panel-2); }
-.lock-key-del { font-size: 26px; background: none; }
+.lock-key-del { font-size: 26px; }
 
 .lock-forgot, .lock-cancel {
   color: var(--text-dim);

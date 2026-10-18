@@ -8,6 +8,7 @@
     modalMethod: 'card',
     detailCategoryId: null,
     detailYear: new Date().getFullYear(),
+    detailMonth: null, // 0-indexed; which bar is selected for the entries list below the chart
     editingCategoryId: null,
     summaryView: 'monthly', // 'monthly' | 'yearly'
   };
@@ -111,6 +112,8 @@
     detailCategoryTitle: document.getElementById('detail-category-title'),
     detailCategoryTotal: document.getElementById('detail-category-total'),
     barChart: document.getElementById('bar-chart'),
+    detailEntriesMonthLabel: document.getElementById('detail-entries-month-label'),
+    detailEntriesList: document.getElementById('detail-entries-list'),
 
     btnCategoriesOpen: document.getElementById('btn-categories-open'),
     screenCategories: document.getElementById('screen-categories'),
@@ -641,6 +644,8 @@
   function openCategoryDetail(categoryId) {
     state.detailCategoryId = categoryId;
     state.detailYear = state.year;
+    const now = new Date();
+    state.detailMonth = state.detailYear === now.getFullYear() ? now.getMonth() : 11;
     showScreen('screen-category-detail');
     renderCategoryDetail();
   }
@@ -660,7 +665,7 @@
     el.barChart.innerHTML = '';
     totals.forEach((value, i) => {
       const col = document.createElement('div');
-      col.className = 'bar-col';
+      col.className = 'bar-col' + (i === state.detailMonth ? ' selected' : '');
 
       const valEl = document.createElement('div');
       valEl.className = 'bar-value';
@@ -688,7 +693,72 @@
       col.appendChild(valEl);
       col.appendChild(track);
       col.appendChild(monthEl);
+      col.addEventListener('click', () => {
+        state.detailMonth = i;
+        renderCategoryDetail();
+      });
       el.barChart.appendChild(col);
+    });
+
+    renderDetailEntriesList();
+  }
+
+  // Tapping a bar (month) shows that month's individual entries for this
+  // category below the chart — the same "tap to see details" pattern as
+  // tapping a day on the calendar.
+  function renderDetailEntriesList() {
+    const month = state.detailMonth;
+    el.detailEntriesMonthLabel.textContent = month == null ? 'Entries' : `${MONTH_SHORT[month]} ${state.detailYear} Entries`;
+    el.detailEntriesList.innerHTML = '';
+    if (month == null) return;
+
+    const entries = Storage.getEntriesForMonth(state.detailYear, month)
+      .filter(e => e.categoryId === state.detailCategoryId)
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.createdAt || 0) - (b.createdAt || 0));
+
+    if (entries.length === 0) {
+      el.detailEntriesList.appendChild(emptyHint('No entries this month.'));
+      return;
+    }
+
+    entries.forEach(entry => {
+      const li = document.createElement('li');
+      const row = document.createElement('div');
+      row.className = 'entry-row';
+
+      const main = document.createElement('div');
+      main.className = 'entry-main';
+      const dateEl = document.createElement('div');
+      dateEl.className = 'entry-category';
+      const d = new Date(entry.date + 'T00:00:00');
+      dateEl.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const metaEl = document.createElement('div');
+      metaEl.className = 'entry-meta';
+      const isCarryOver = entry.categoryId === Storage.CARRY_OVER_CATEGORY_ID;
+      let methodLabel;
+      if (isCarryOver) methodLabel = 'Automatic';
+      else if (entry.type === 'income') methodLabel = 'Income';
+      else if (entry.type === 'transfer') methodLabel = '↔ Balance deduction';
+      else methodLabel = entry.method === 'cash' ? '💵 Cash' : '💳 Card';
+      metaEl.textContent = methodLabel + (entry.memo ? ' · ' + entry.memo : '');
+      main.appendChild(dateEl);
+      main.appendChild(metaEl);
+
+      const amountEl = document.createElement('div');
+      amountEl.className = 'entry-amount ' + entry.type + (entry.type === 'expense' && entry.method === 'card' ? ' card' : '');
+      amountEl.textContent = (entry.type === 'income' ? '+' : '') + formatKRW(entry.amount).slice(1);
+
+      row.appendChild(main);
+      row.appendChild(amountEl);
+      if (isCarryOver) {
+        row.classList.add('entry-row-readonly');
+        row.addEventListener('click', () => alert('This entry is generated automatically at the start of each month and can\'t be edited or deleted.'));
+      } else {
+        row.addEventListener('click', () => openModal(entry.date, entry));
+      }
+
+      li.appendChild(row);
+      el.detailEntriesList.appendChild(li);
     });
   }
 
@@ -1154,6 +1224,7 @@
       renderCalendar();
       renderDayPanel();
       renderSummary();
+      if (!el.screenCategoryDetail.classList.contains('hidden')) renderCategoryDetail();
     }
   });
 
@@ -1231,6 +1302,7 @@
     renderCalendar();
     renderDayPanel();
     renderSummary();
+    if (!el.screenCategoryDetail.classList.contains('hidden')) renderCategoryDetail();
   });
 
   el.btnAddForDay.addEventListener('click', () => openModal(state.selectedDate || todayStr()));

@@ -155,6 +155,16 @@ category's type (green/red/violet). Expense categories with a budget show
 a dashed horizontal reference line at the budget height. "‹ Back" returns
 to the Summary tab.
 
+Below the chart, an **entries list** mirrors the Calendar day-panel
+pattern: tapping a bar (month) selects it (outlined, label in accent
+color) and lists every individual entry in that category for that
+month — date, payment method/memo, amount, tappable to open the same
+edit modal used everywhere else (Carried Over entries are read-only here
+too). Opening the screen defaults to the real current month if the
+selected year is the real current year, otherwise December. Saving or
+deleting an entry from this list refreshes the chart and list in place
+without leaving the screen.
+
 ### 4. Settings (`#screen-categories`, page title "Settings") — reached via 🏷️ icon on Calendar
 
 Full CRUD for categories and budgets, grouped into Expense / Income /
