@@ -87,14 +87,24 @@
   <!-- ===== MONTHLY SUMMARY SCREEN ===== -->
   <section id="screen-summary" class="screen hidden">
     <header class="topbar summary-topbar">
-      <div class="month-nav">
+      <div class="month-nav" id="summary-monthly-nav">
         <button id="btn-sum-prev-month" class="icon-btn" aria-label="Previous month">‹</button>
         <h1 id="summary-month-label">September 2026</h1>
         <button id="btn-sum-next-month" class="icon-btn" aria-label="Next month">›</button>
       </div>
+      <div class="month-nav hidden" id="summary-yearly-nav">
+        <button id="btn-sum-prev-year" class="icon-btn" aria-label="Previous year">‹</button>
+        <h1 id="summary-year-label">2026</h1>
+        <button id="btn-sum-next-year" class="icon-btn" aria-label="Next year">›</button>
+      </div>
     </header>
 
-    <div class="summary-page">
+    <div class="summary-view-toggle">
+      <button type="button" class="view-toggle-btn active" data-view="monthly">Monthly</button>
+      <button type="button" class="view-toggle-btn" data-view="yearly">Yearly</button>
+    </div>
+
+    <div class="summary-page" id="summary-monthly-content">
       <div class="summary-page-section">
         <div class="summary-page-head">
           <h3>Expenses</h3>
@@ -118,6 +128,29 @@
           <span id="summary-transfer-total" class="section-total transfer">₩0</span>
         </div>
         <ul id="summary-transfer-list" class="breakdown-list"></ul>
+      </div>
+    </div>
+
+    <div class="summary-page hidden" id="summary-yearly-content">
+      <div class="yearly-net-banner">
+        <span class="summary-label">Yearly Net</span>
+        <span id="yearly-net-amount">₩0</span>
+      </div>
+
+      <div class="summary-page-section">
+        <div class="summary-page-head">
+          <h3>Inflow</h3>
+          <span id="yearly-inflow-total" class="section-total income">₩0</span>
+        </div>
+        <ul id="yearly-inflow-list" class="breakdown-list"></ul>
+      </div>
+
+      <div class="summary-page-section">
+        <div class="summary-page-head">
+          <h3>Outflow</h3>
+          <span id="yearly-outflow-total" class="section-total expense">₩0</span>
+        </div>
+        <ul id="yearly-outflow-list" class="breakdown-list"></ul>
       </div>
     </div>
   </section>

@@ -38,6 +38,7 @@ const Storage = (() => {
     { id: 'inc-pocket-money', name: '👛 Pocket Money', type: 'income' },
     { id: 'inc-interest', name: '📈 Interest', type: 'income' },
     { id: 'inc-asset-withdrawal', name: '🏦 Asset Withdrawal', type: 'income' },
+    { id: 'inc-tax-refund', name: '🧾 Tax Refund', type: 'income' },
     { id: 'inc-carried-over', name: '🔁 Carried Over', type: 'income' },
     // Transfers (deduct Balance, not counted as expenses)
     { id: 'trf-pension', name: '👴 Pension', type: 'transfer' },
@@ -53,6 +54,7 @@ const Storage = (() => {
   // made via Settings persists the whole map, defaults and all, so this
   // only matters until the first edit. Flexible intentionally has none.
   const DEFAULT_BUDGETS = {
+    'inc-salary': 8850000,
     'exp-food': 500000,
     'exp-beauty': 210000,
     'exp-clothing': 250000,
@@ -140,6 +142,11 @@ const Storage = (() => {
 
   function getEntriesForMonth(year, month) {
     const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    return getEntries().filter(e => e.date.startsWith(prefix));
+  }
+
+  function getEntriesForYear(year) {
+    const prefix = `${year}-`;
     return getEntries().filter(e => e.date.startsWith(prefix));
   }
 
@@ -275,7 +282,7 @@ const Storage = (() => {
     uid,
     getCategories, addCategory, updateCategory, deleteCategory,
     CARRY_OVER_CATEGORY_ID,
-    getEntries, saveEntries, getEntriesForDate, getEntriesForMonth,
+    getEntries, saveEntries, getEntriesForDate, getEntriesForMonth, getEntriesForYear,
     upsertEntry, deleteEntry,
     hashPin, getPinHash, setPinHash, wipeAll,
     getBudgets, getBudget, setBudget,

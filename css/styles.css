@@ -293,6 +293,35 @@ html, body {
 .summary-topbar { padding: 2px 8px 8px; }
 .summary-topbar .month-nav h1 { font-size: 18px; min-width: 160px; }
 
+.summary-view-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 10px;
+}
+.view-toggle-btn {
+  flex: 1;
+  background: var(--panel);
+  border: 2px solid transparent;
+  color: var(--text-dim);
+  padding: 9px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.view-toggle-btn.active { border-color: var(--accent); color: var(--text); }
+
+.yearly-net-banner {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.yearly-net-banner .summary-label { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
+.yearly-net-banner span:last-child { font-size: 22px; font-weight: 700; }
+
 .summary-page {
   padding: 0 12px 24px;
   overflow-y: auto;

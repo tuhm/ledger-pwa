@@ -9,6 +9,7 @@
     detailCategoryId: null,
     detailYear: new Date().getFullYear(),
     editingCategoryId: null,
+    summaryView: 'monthly', // 'monthly' | 'yearly'
   };
 
   // Fixed display order for the Summary page's Expense/Income sections
@@ -86,6 +87,20 @@
     summaryExpenseList: document.getElementById('summary-expense-list'),
     summaryTransferList: document.getElementById('summary-transfer-list'),
     summaryExpenseBudgetLine: document.getElementById('summary-expense-budget-line'),
+
+    viewToggleBtns: document.querySelectorAll('.view-toggle-btn'),
+    summaryMonthlyNav: document.getElementById('summary-monthly-nav'),
+    summaryYearlyNav: document.getElementById('summary-yearly-nav'),
+    summaryMonthlyContent: document.getElementById('summary-monthly-content'),
+    summaryYearlyContent: document.getElementById('summary-yearly-content'),
+    summaryYearLabel: document.getElementById('summary-year-label'),
+    btnSumPrevYear: document.getElementById('btn-sum-prev-year'),
+    btnSumNextYear: document.getElementById('btn-sum-next-year'),
+    yearlyNetAmount: document.getElementById('yearly-net-amount'),
+    yearlyInflowTotal: document.getElementById('yearly-inflow-total'),
+    yearlyInflowList: document.getElementById('yearly-inflow-list'),
+    yearlyOutflowTotal: document.getElementById('yearly-outflow-total'),
+    yearlyOutflowList: document.getElementById('yearly-outflow-list'),
 
     screenCategoryDetail: document.getElementById('screen-category-detail'),
     btnDetailBack: document.getElementById('btn-detail-back'),
@@ -422,6 +437,125 @@
     }
   }
 
+  // ---------- Yearly summary ----------
+  // Not a sum of monthly summaries — a budget-based yearly view:
+  //  Inflow:  Salary (annualized target) / Over-time (actual - target) /
+  //           Other Income (everything but salary, tax refund, asset
+  //           withdrawal, carried-over) / Tax Refund.
+  //  Outflow: Monthly Expense (sum of annualized budgets, for categories
+  //           that have one) / Over-budget (actual - annualized budget,
+  //           summed, signed) / each un-budgeted expense category on its
+  //           own / Pension (transfer).
+  //  Net:     Inflow total - Outflow total, shown at the top.
+  function renderYearlySummary() {
+    const year = state.year;
+    el.summaryYearLabel.textContent = year;
+    const categories = Storage.getCategories();
+    const yearEntries = Storage.getEntriesForYear(year);
+
+    // ---- Inflow ----
+    const salaryAnnualTarget = Storage.getBudget('inc-salary', year) * 12;
+    const excludedIncomeIds = new Set(['inc-salary', 'inc-tax-refund', 'inc-asset-withdrawal', Storage.CARRY_OVER_CATEGORY_ID]);
+    let salaryActual = 0, taxRefundActual = 0, otherIncomeActual = 0;
+    yearEntries.filter(e => e.type === 'income').forEach(e => {
+      const amt = Number(e.amount);
+      if (e.categoryId === 'inc-salary') salaryActual += amt;
+      else if (e.categoryId === 'inc-tax-refund') taxRefundActual += amt;
+      else if (!excludedIncomeIds.has(e.categoryId)) otherIncomeActual += amt;
+      // asset withdrawal + carried-over: intentionally ignored
+    });
+    const overTime = salaryActual - salaryAnnualTarget;
+    const totalInflow = salaryAnnualTarget + overTime + otherIncomeActual + taxRefundActual;
+
+    el.yearlyInflowTotal.textContent = formatKRW(totalInflow);
+    el.yearlyInflowList.innerHTML = '';
+    [
+      ['💰 Salary', salaryAnnualTarget],
+      ['⏱️ Over-time', overTime],
+      ['💵 Other Income', otherIncomeActual],
+      ['🧾 Tax Refund', taxRefundActual],
+    ].forEach(([name, amount]) => {
+      el.yearlyInflowList.appendChild(breakdownRow({ name, amount, type: 'income' }));
+    });
+
+    // ---- Outflow ----
+    const expenseCats = categories.filter(c => c.type === 'expense');
+    const actualByCat = {};
+    expenseCats.forEach(c => { actualByCat[c.id] = 0; });
+    yearEntries.filter(e => e.type === 'expense').forEach(e => {
+      if (actualByCat[e.categoryId] != null) actualByCat[e.categoryId] += Number(e.amount);
+    });
+
+    let monthlyExpenseTotal = 0, overBudgetTotal = 0;
+    const unbudgetedIds = [];
+    expenseCats.forEach(c => {
+      const monthlyBudget = Storage.getBudget(c.id, year);
+      if (monthlyBudget > 0) {
+        const annualBudget = monthlyBudget * 12;
+        monthlyExpenseTotal += annualBudget;
+        overBudgetTotal += (actualByCat[c.id] - annualBudget);
+      } else {
+        unbudgetedIds.push(c.id);
+      }
+    });
+
+    let pensionActual = 0;
+    yearEntries.filter(e => e.type === 'transfer' && e.categoryId === 'trf-pension').forEach(e => {
+      pensionActual += Number(e.amount);
+    });
+
+    const unbudgetedTotal = unbudgetedIds.reduce((sum, id) => sum + actualByCat[id], 0);
+    const totalOutflow = monthlyExpenseTotal + overBudgetTotal + unbudgetedTotal + pensionActual;
+
+    el.yearlyOutflowTotal.textContent = formatKRW(totalOutflow);
+    el.yearlyOutflowList.innerHTML = '';
+    el.yearlyOutflowList.appendChild(breakdownRow({ name: '📅 Monthly Expense', amount: monthlyExpenseTotal, type: 'expense' }));
+    el.yearlyOutflowList.appendChild(breakdownRow({ name: '⚠️ Over-budget', amount: overBudgetTotal, type: 'expense' }));
+
+    // Un-budgeted categories in the same fixed order as the monthly view.
+    const unbudgetedSet = new Set(unbudgetedIds);
+    EXPENSE_SORT_ORDER.filter(id => unbudgetedSet.has(id))
+      .concat(unbudgetedIds.filter(id => !EXPENSE_SORT_ORDER.includes(id)))
+      .forEach(id => {
+        const cat = categoryById(id);
+        el.yearlyOutflowList.appendChild(breakdownRow({
+          name: cat ? cat.name : '(unknown)', amount: actualByCat[id], type: 'expense',
+          onClick: () => openCategoryDetail(id),
+        }));
+      });
+
+    const pensionCat = categoryById('trf-pension');
+    el.yearlyOutflowList.appendChild(breakdownRow({
+      name: pensionCat ? pensionCat.name : '👴 Pension', amount: pensionActual, type: 'expense',
+      onClick: () => openCategoryDetail('trf-pension'),
+    }));
+
+    // ---- Net ----
+    const net = totalInflow - totalOutflow;
+    el.yearlyNetAmount.textContent = formatKRW(net);
+    el.yearlyNetAmount.style.color = net >= 0 ? 'var(--income)' : 'var(--expense)';
+  }
+
+  function renderSummaryScreen() {
+    el.summaryMonthlyNav.classList.toggle('hidden', state.summaryView !== 'monthly');
+    el.summaryYearlyNav.classList.toggle('hidden', state.summaryView !== 'yearly');
+    el.summaryMonthlyContent.classList.toggle('hidden', state.summaryView !== 'monthly');
+    el.summaryYearlyContent.classList.toggle('hidden', state.summaryView !== 'yearly');
+    if (state.summaryView === 'yearly') renderYearlySummary();
+    else renderSummaryPage();
+  }
+
+  el.viewToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.summaryView = btn.dataset.view;
+      el.viewToggleBtns.forEach(b => b.classList.toggle('active', b === btn));
+      renderSummaryScreen();
+    });
+  });
+
+  el.btnSumPrevYear.addEventListener('click', () => { state.year -= 1; renderSummaryScreen(); });
+  el.btnSumNextYear.addEventListener('click', () => { state.year += 1; renderSummaryScreen(); });
+
   function emptyHint(text) {
     const li = document.createElement('li');
     li.className = 'empty-hint';
@@ -451,7 +585,7 @@
     if (amount !== null) {
       const amountEl = document.createElement('div');
       amountEl.className = 'bd-amount ' + type;
-      amountEl.textContent = (type === 'income' ? '+' : '') + formatKRW(amount).slice(1);
+      amountEl.textContent = (type === 'income' && amount >= 0 ? '+' : '') + formatKRW(amount).slice(1);
       row.appendChild(amountEl);
     }
     if (onClick) row.addEventListener('click', onClick);
@@ -465,7 +599,7 @@
       el.navBtns.forEach(b => b.classList.toggle('active', b.dataset.screen === screenId));
     }
     if (screenId === 'screen-summary') {
-      renderSummaryPage();
+      renderSummaryScreen();
     } else if (screenId === 'screen-calendar') {
       renderCalendar();
       renderDayPanel();
@@ -507,7 +641,7 @@
     const yearTotal = totals.reduce((a, b) => a + b, 0);
     el.detailCategoryTotal.textContent = `Year total: ${formatKRW(yearTotal)}`;
 
-    const budget = cat && cat.type === 'expense' ? Storage.getBudget(cat.id, state.detailYear) : 0;
+    const budget = cat && cat.type !== 'transfer' ? Storage.getBudget(cat.id, state.detailYear) : 0;
     const scaleMax = Math.max(...totals, budget, 1);
 
     el.barChart.innerHTML = '';
@@ -572,10 +706,10 @@
         return;
       }
       catsOfType.forEach(c => {
-        const budget = type === 'expense' ? Storage.getBudget(c.id, currentRealYear()) : 0;
+        const budget = type !== 'transfer' ? Storage.getBudget(c.id, currentRealYear()) : 0;
         lists[type].appendChild(breakdownRow({
           name: c.name,
-          subText: budget ? `🎯 Budget ${formatKRW(budget)}` : null,
+          subText: budget ? `🎯 ${type === 'income' ? 'Target' : 'Budget'} ${formatKRW(budget)}` : null,
           amount: null,
           type,
           onClick: () => openCategoryModal(c),
@@ -599,13 +733,13 @@
     } else {
       el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b.dataset.type === 'expense'));
     }
-    el.categoryBudgetField.classList.toggle('hidden', type !== 'expense');
+    el.categoryBudgetField.classList.toggle('hidden', type === 'transfer');
 
     const { icon, label } = splitCategoryName(category ? category.name : '');
     el.inputCategoryIcon.value = icon;
     el.inputCategoryName.value = label;
-    el.inputCategoryBudget.value = category && type === 'expense' ? (Storage.getBudget(category.id, currentRealYear()) || '') : '';
-    el.categoryBudgetLabel.textContent = `${currentRealYear()} Monthly Budget (₩, optional)`;
+    el.inputCategoryBudget.value = category && type !== 'transfer' ? (Storage.getBudget(category.id, currentRealYear()) || '') : '';
+    el.categoryBudgetLabel.textContent = `${currentRealYear()} Monthly ${type === 'income' ? 'Target' : 'Budget'} (₩, optional)`;
 
     el.categoryModal.classList.remove('hidden');
   }
@@ -619,7 +753,8 @@
   el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       el.categoryTypeToggle.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b === btn));
-      el.categoryBudgetField.classList.toggle('hidden', btn.dataset.type !== 'expense');
+      el.categoryBudgetField.classList.toggle('hidden', btn.dataset.type === 'transfer');
+      el.categoryBudgetLabel.textContent = `${currentRealYear()} Monthly ${btn.dataset.type === 'income' ? 'Target' : 'Budget'} (₩, optional)`;
     });
   });
 
@@ -684,14 +819,14 @@
     if (state.editingCategoryId) {
       const existing = categoryById(state.editingCategoryId);
       Storage.updateCategory(state.editingCategoryId, { name });
-      if (existing.type === 'expense') {
+      if (existing.type !== 'transfer') {
         Storage.setBudget(state.editingCategoryId, Number(el.inputCategoryBudget.value) || 0, currentRealYear());
       }
     } else {
       const activeBtn = el.categoryTypeToggle.querySelector('.type-btn.active');
       const type = activeBtn ? activeBtn.dataset.type : 'expense';
       const newId = Storage.addCategory({ name, type });
-      if (type === 'expense') {
+      if (type !== 'transfer') {
         Storage.setBudget(newId, Number(el.inputCategoryBudget.value) || 0, currentRealYear());
       }
     }

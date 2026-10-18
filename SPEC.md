@@ -98,6 +98,12 @@ month.
 
 ### 2. Summary (`#screen-summary`) — second bottom tab
 
+A **Monthly / Yearly** toggle at the top switches between two very
+different views that share one `state.year` (so navigating years in one
+view carries over if you switch to the other). Monthly is the default.
+
+#### Monthly view
+
 Three sections, in this order: **Expenses, Income, Deductions**, each with
 a month nav header shared across the page. Every category of that type is
 always listed (even at ₩0). Expense and Income rows use a **fixed display
@@ -111,6 +117,27 @@ descending. Expense rows (and the Expenses section total) show a budget
 comparison line when a budget is set: `🎯 ₩budget · Under by ₩x` (blue) or
 `Over by ₩x` (red). Tapping any category row opens its yearly detail (see
 below).
+
+#### Yearly view
+
+**Not** a sum of the 12 monthly summaries — a budget-vs-actual view for the
+whole year, with year nav (‹ year ›, unbounded) and a **Yearly Net** banner
+at the top (Inflow total − Outflow total, green/red by sign).
+
+**Inflow** (always these 4 rows, in order):
+- **Salary** = that year's Salary monthly target (`Storage.getBudget('inc-salary', year)`) × 12 — same seed-then-editable annual-budget mechanism used for expense budgets, just applied to an income category.
+- **Over-time** = actual Salary-category total for the year − the Salary line above. Can go negative (shown unsigned-green, i.e. no `+` prefix, if actual fell short of target) — Salary + Over-time always nets back to the real actual Salary income.
+- **Other Income** = sum of every income entry **except** Salary, Tax Refund, Asset Withdrawal, and Carried Over (so Pocket Money + Interest + any custom income category land here).
+- **Tax Refund** = that category's actual yearly total.
+- Asset Withdrawal and Carried Over are deliberately excluded entirely from the yearly view (not shown as rows, not counted in the total).
+
+**Outflow**:
+- **Monthly Expense** = sum, across every expense category **that has a budget set for that year**, of (that category's monthly budget × 12). This is the year's total *expected* spending, not actual.
+- **Over-budget** = sum, across those same budgeted categories, of (actual yearly total − annualized budget) — signed, so a net-under-budget year shows negative here.
+- Every expense category **without** a budget gets its own row at actual spend (in `EXPENSE_SORT_ORDER`), since there's no budget to compare against — e.g. Flexible, which never has a default budget.
+- **Pension** (`trf-pension`, a Transfer category) is added here too, at its actual yearly total — the only Transfer category that surfaces in the yearly summary.
+
+All yearly category rows are tappable, opening the same category-detail bar chart as the monthly view.
 
 ### 3. Category Detail (`#screen-category-detail`) — reached via tap
 
@@ -193,21 +220,24 @@ memo) and leaves the cursor ready to keep typing.
 
 ## Budgets
 
-Monthly budget per expense category, **scoped by year**:
-`ledger.budgets` = `{ [year]: { [categoryId]: amount } }`. Editing a budget
-in Settings always writes an explicit snapshot under the **current real
-year** (`currentRealYear()` in `app.js`, independent of whatever month the
-calendar happens to be showing) — it never modifies a prior year's
-already-recorded values. A year with no explicit snapshot for a category
-inherits from the closest earlier year that has one (so a new year doesn't
-require re-entering every budget), falling back to the seed defaults
-(`DEFAULT_BUDGETS` in `storage.js`, seeded under whichever year first reads
-them) if nothing's ever been set. `Storage.getBudget(categoryId, year)` and
-`Storage.setBudget(categoryId, amount, year)` both take an explicit year;
-every call site passes the year relevant to its context (Summary/Calendar
-use `state.year`, the category detail chart uses `state.detailYear`,
-Settings and CSV export resolve per the month/year actually being shown or
-exported — see the file for exact call sites).
+Monthly budget (labeled "Target" for income categories, "Budget" for
+expense), **scoped by year**: `ledger.budgets` = `{ [year]: { [categoryId]:
+amount } }`. Available for both expense and income categories (not
+Transfer — the budget field is hidden when editing a Transfer category).
+Editing a budget in Settings always writes an explicit snapshot under the
+**current real year** (`currentRealYear()` in `app.js`, independent of
+whatever month the calendar happens to be showing) — it never modifies a
+prior year's already-recorded values. A year with no explicit snapshot for
+a category inherits from the closest earlier year that has one (so a new
+year doesn't require re-entering every budget), falling back to the seed
+defaults (`DEFAULT_BUDGETS` in `storage.js`, seeded under whichever year
+first reads them — includes `inc-salary: 8850000` alongside the expense
+defaults) if nothing's ever been set. `Storage.getBudget(categoryId, year)`
+and `Storage.setBudget(categoryId, amount, year)` both take an explicit
+year; every call site passes the year relevant to its context
+(Summary/Calendar use `state.year`, the category detail chart uses
+`state.detailYear`, Settings and CSV export resolve per the month/year
+actually being shown or exported — see the file for exact call sites).
 
 A one-time migration (`migrateBudgetsIfFlat` in `storage.js`) detects the
 old flat `{ categoryId: amount }` shape (pre-dating year-scoping) and wraps
