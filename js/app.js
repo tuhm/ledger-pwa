@@ -98,12 +98,11 @@
     summaryYearSubtitle: document.getElementById('summary-year-subtitle'),
     btnSumPrevYear: document.getElementById('btn-sum-prev-year'),
     btnSumNextYear: document.getElementById('btn-sum-next-year'),
-    yearlyNetAmount: document.getElementById('yearly-net-amount'),
-    yearlyNetMonthLabel: document.getElementById('yearly-net-month-label'),
-    yearlyNetMonthAmount: document.getElementById('yearly-net-month-amount'),
     yearlyInflowTotal: document.getElementById('yearly-inflow-total'),
+    yearlyInflowMonthLine: document.getElementById('yearly-inflow-month-line'),
     yearlyInflowList: document.getElementById('yearly-inflow-list'),
     yearlyOutflowTotal: document.getElementById('yearly-outflow-total'),
+    yearlyOutflowMonthLine: document.getElementById('yearly-outflow-month-line'),
     yearlyOutflowList: document.getElementById('yearly-outflow-list'),
 
     screenCategoryDetail: document.getElementById('screen-category-detail'),
@@ -516,7 +515,6 @@
     return {
       salaryTarget, overTime, otherIncomeActual, taxRefundActual, totalInflow,
       monthlyExpenseTotal, overBudgetTotal, actualByCat, unbudgetedIds, pensionActual, totalOutflow,
-      net: totalInflow - totalOutflow,
     };
   }
 
@@ -527,7 +525,6 @@
     const monthsCount = monthsElapsedCount();
     const thisMonth = monthsCount - 1; // 0-indexed, the cutoff month
     el.summaryYearSubtitle.textContent = `Through ${MONTH_SHORT[thisMonth]} (${monthsCount} mo.)`;
-    el.yearlyNetMonthLabel.textContent = `This Month (${MONTH_SHORT[thisMonth]})`;
 
     const acc = computeYearlyFigures(year, thisMonth, categories); // placeholder, replaced below with real accumulation
     // Accumulated figures sum every elapsed month individually (rather than
@@ -535,7 +532,7 @@
     // changed mid-year is respected — though budgets don't vary by month
     // within a year today, this keeps the math correct if that ever changes.
     const accumulated = { salaryTarget: 0, overTime: 0, otherIncomeActual: 0, taxRefundActual: 0, totalInflow: 0,
-      monthlyExpenseTotal: 0, overBudgetTotal: 0, actualByCat: {}, pensionActual: 0, totalOutflow: 0, net: 0 };
+      monthlyExpenseTotal: 0, overBudgetTotal: 0, actualByCat: {}, pensionActual: 0, totalOutflow: 0 };
     categories.filter(c => c.type === 'expense').forEach(c => { accumulated.actualByCat[c.id] = 0; });
     for (let m = 0; m < monthsCount; m++) {
       const f = computeYearlyFigures(year, m, categories);
@@ -550,13 +547,13 @@
       accumulated.totalOutflow += f.totalOutflow;
       Object.keys(f.actualByCat).forEach(id => { accumulated.actualByCat[id] = (accumulated.actualByCat[id] || 0) + f.actualByCat[id]; });
     }
-    accumulated.net = accumulated.totalInflow - accumulated.totalOutflow;
     accumulated.unbudgetedIds = acc.unbudgetedIds; // same set regardless of month (budget presence doesn't vary by month)
 
     const thisMonthFigures = acc;
 
     // ---- Inflow ----
     el.yearlyInflowTotal.textContent = formatKRW(accumulated.totalInflow);
+    el.yearlyInflowMonthLine.textContent = `This month: ${formatSignedKRW(thisMonthFigures.totalInflow)}`;
     el.yearlyInflowList.innerHTML = '';
     [
       ['💰 Salary', accumulated.salaryTarget, thisMonthFigures.salaryTarget],
@@ -572,6 +569,7 @@
 
     // ---- Outflow ----
     el.yearlyOutflowTotal.textContent = formatKRW(accumulated.totalOutflow);
+    el.yearlyOutflowMonthLine.textContent = `This month: ${formatSignedKRW(thisMonthFigures.totalOutflow)}`;
     el.yearlyOutflowList.innerHTML = '';
     el.yearlyOutflowList.appendChild(breakdownRow({
       name: '📅 Monthly Expense', amount: accumulated.monthlyExpenseTotal, type: 'expense',
@@ -601,12 +599,6 @@
       subText: `This month: ${formatSignedKRW(thisMonthFigures.pensionActual)}`,
       onClick: () => openCategoryDetail('trf-pension'),
     }));
-
-    // ---- Net ----
-    el.yearlyNetAmount.textContent = formatSignedKRW(accumulated.net);
-    el.yearlyNetAmount.style.color = accumulated.net >= 0 ? 'var(--income)' : 'var(--expense)';
-    el.yearlyNetMonthAmount.textContent = formatSignedKRW(thisMonthFigures.net);
-    el.yearlyNetMonthAmount.style.color = thisMonthFigures.net >= 0 ? 'var(--income)' : 'var(--expense)';
   }
 
   function renderSummaryScreen() {

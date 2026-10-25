@@ -133,11 +133,15 @@ Jan–Oct (10 months) for the accumulated figure, with "This month" meaning
 October alone, whether that's this year or a past one (so a past year's
 "This month" is that year's same-numbered month, not literally the
 current calendar month). A subtitle under the year header spells out the
-accumulation window, e.g. "Through Oct (10 mo.)". Two stacked banners at
-the top show Net (Inflow − Outflow) both ways: **This Month (Oct)** and
-**Accumulated**, each green/red by sign. Entries dated after the cutoff
-(e.g. a future month within the selected year) are excluded from every
-figure, both-month and accumulated alike.
+accumulation window, e.g. "Through Oct (10 mo.)". No Net/Inflow-minus-
+Outflow figure is shown anywhere on this page — only Inflow and Outflow
+each with their own accumulated + this-month pair. Entries dated after
+the cutoff (e.g. a future month within the selected year) are excluded
+from every figure, both-month and accumulated alike.
+
+The **Inflow** and **Outflow** section headers themselves also carry the
+two-number treatment (accumulated total + "This month: ₩x" sub-line right
+below the header), matching every row beneath them.
 
 **Inflow** (always these 4 rows, in order — accumulated amount with "This
 month" sub-line):

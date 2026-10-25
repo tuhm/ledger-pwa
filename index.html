@@ -134,22 +134,12 @@
     </div>
 
     <div class="summary-page hidden" id="summary-yearly-content">
-      <div class="yearly-net-banner-row">
-        <div class="yearly-net-banner">
-          <span class="summary-label" id="yearly-net-month-label">This Month</span>
-          <span id="yearly-net-month-amount">₩0</span>
-        </div>
-        <div class="yearly-net-banner">
-          <span class="summary-label">Accumulated</span>
-          <span id="yearly-net-amount">₩0</span>
-        </div>
-      </div>
-
       <div class="summary-page-section">
         <div class="summary-page-head">
           <h3>Inflow</h3>
           <span id="yearly-inflow-total" class="section-total income">₩0</span>
         </div>
+        <div class="budget-line" id="yearly-inflow-month-line"></div>
         <ul id="yearly-inflow-list" class="breakdown-list"></ul>
       </div>
 
@@ -158,6 +148,7 @@
           <h3>Outflow</h3>
           <span id="yearly-outflow-total" class="section-total expense">₩0</span>
         </div>
+        <div class="budget-line" id="yearly-outflow-month-line"></div>
         <ul id="yearly-outflow-list" class="breakdown-list"></ul>
       </div>
     </div>
