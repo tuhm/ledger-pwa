@@ -319,17 +319,24 @@ html, body {
 }
 .view-toggle-btn.active { border-color: var(--accent); color: var(--text); }
 
+.yearly-net-banner-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
 .yearly-net-banner {
   background: var(--panel);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
 }
 .yearly-net-banner .summary-label { font-size: 13px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .03em; }
-.yearly-net-banner span:last-child { font-size: 22px; font-weight: 700; }
+.yearly-net-banner span:last-child { font-size: 20px; font-weight: 700; }
+
+.bd-sub.this-month { color: var(--text-dim); }
 
 .summary-page {
   padding: 0 12px 24px;

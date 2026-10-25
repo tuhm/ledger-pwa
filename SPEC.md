@@ -121,29 +121,44 @@ below).
 #### Yearly view
 
 **Not** a full calendar year, and **not** a sum of the 12 monthly
-summaries — an accumulated **year-to-date** snapshot. For ANY year
-selected (year nav ‹ year ›, unbounded in both directions), it always
-covers Jan 1 through the last day of the **real current month**
+summaries — an accumulated **year-to-date** snapshot, with every figure
+shown as **two numbers**: the accumulated (year-to-date) total as the main
+amount, and that one cutoff month's own standalone total as a "This
+month: ₩x" sub-line beneath it. For ANY year selected (year nav ‹ year ›,
+unbounded in both directions), the accumulation always covers Jan 1
+through the last day of the **real current month**
 (`monthsElapsedCount()` in `app.js` = `new Date().getMonth() + 1`,
 independent of the selected year) — e.g. viewing in October always sums
-Jan–Oct (10 months), whether that's this year or a past one. A subtitle
-under the year header spells this out, e.g. "Through Oct (10 mo.)", and a
-**Yearly Net** banner at the top shows Inflow total − Outflow total
-(green/red by sign). Entries dated after that cutoff (e.g. a future month
-within the selected year) are excluded from every figure on this page.
+Jan–Oct (10 months) for the accumulated figure, with "This month" meaning
+October alone, whether that's this year or a past one (so a past year's
+"This month" is that year's same-numbered month, not literally the
+current calendar month). A subtitle under the year header spells out the
+accumulation window, e.g. "Through Oct (10 mo.)". Two stacked banners at
+the top show Net (Inflow − Outflow) both ways: **This Month (Oct)** and
+**Accumulated**, each green/red by sign. Entries dated after the cutoff
+(e.g. a future month within the selected year) are excluded from every
+figure, both-month and accumulated alike.
 
-**Inflow** (always these 4 rows, in order):
-- **Salary** = Salary's monthly target for that year (`Storage.getBudget('inc-salary', year)`) × months-elapsed.
-- **Over-time** = actual Salary-category total (through the cutoff) − the Salary line above. Can go negative (shown unsigned-green, i.e. no `+` prefix, if actual fell short of target) — Salary + Over-time always nets back to the real actual Salary income to date.
-- **Other Income** = sum of every income entry (through the cutoff) **except** Salary, Tax Refund, Asset Withdrawal, and Carried Over (so Pocket Money + Interest + any custom income category land here).
-- **Tax Refund** = that category's actual total through the cutoff.
-- Asset Withdrawal and Carried Over are deliberately excluded entirely from the yearly view (not shown as rows, not counted in the total).
+**Inflow** (always these 4 rows, in order — accumulated amount with "This
+month" sub-line):
+- **Salary** = Salary's monthly target for that year (`Storage.getBudget('inc-salary', year)`); accumulated = target × months-elapsed, this-month = target alone.
+- **Over-time** = actual Salary-category total − the Salary line above, computed the same way per-month then summed for the accumulated figure. Can go negative (shown with a clean leading minus via `formatSignedKRW`) if actual fell short of target — Salary + Over-time always nets back to the real actual Salary income for that scope.
+- **Other Income** = sum of every income entry **except** Salary, Tax Refund, Asset Withdrawal, and Carried Over (so Pocket Money + Interest + any custom income category land here).
+- **Tax Refund** = that category's actual total.
+- Asset Withdrawal and Carried Over are deliberately excluded entirely from the yearly view (not shown as rows, not counted in either total).
 
-**Outflow**:
-- **Monthly Expense** = sum, across every expense category **that has a budget set for that year**, of (that category's monthly budget × months-elapsed). This is the *expected* spending to date, not actual.
-- **Over-budget** = sum, across those same budgeted categories, of (actual total to date − that expected amount) — signed, so running under budget shows negative here.
-- Every expense category **without** a budget gets its own row at actual spend to date (in `EXPENSE_SORT_ORDER`), since there's no budget to compare against — e.g. Flexible, which never has a default budget.
-- **Pension** (`trf-pension`, a Transfer category) is added here too, at its actual total to date — the only Transfer category that surfaces in the yearly summary.
+**Outflow** (same two-number treatment):
+- **Monthly Expense** = sum, across every expense category **that has a budget set for that year**, of that category's monthly budget (accumulated = × months-elapsed, this-month = budget alone). This is *expected* spending, not actual.
+- **Over-budget** = sum, across those same budgeted categories, of (actual − expected) — signed, so running under budget shows negative.
+- Every expense category **without** a budget gets its own row at actual spend (in `EXPENSE_SORT_ORDER`), since there's no budget to compare against — e.g. Flexible, which never has a default budget.
+- **Pension** (`trf-pension`, a Transfer category) is added here too, at its actual total — the only Transfer category that surfaces in the yearly summary.
+
+Implementation note: `computeYearlyFigures(year, month, categories)` computes
+one month's standalone figures; `renderYearlySummary` calls it once for the
+cutoff month (used directly as "this month") and once per elapsed month,
+summed, for the accumulated figures — this per-month-then-sum approach
+keeps Over-time/Over-budget mathematically correct by linearity even
+though budgets don't currently vary month-to-month within a year.
 
 All yearly category rows are tappable, opening the same category-detail bar chart as the monthly view.
 
