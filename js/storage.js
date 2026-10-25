@@ -11,7 +11,7 @@ const Storage = (() => {
   // reset). From then on, the live list lives in localStorage and is fully
   // editable from the Categories page (add / rename / re-icon / delete).
   // Types: 'expense' (counts as spending), 'income', and 'transfer'
-  // (Investment / Card Payment — deducts Balance but is NOT counted as expense).
+  // (Pension / Stocks / FX / Card Payment — deducts Balance but is NOT counted as expense).
   // 'inc-carried-over' is system-generated only (see ensureCarryOverEntries in
   // app.js) — it's excluded from the manual entry form's category dropdown
   // and from the Categories management page.

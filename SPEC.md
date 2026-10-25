@@ -28,7 +28,7 @@ All data in `localStorage`, plain JSON, under these keys:
 |---|---|---|
 | `ledger.entries` | `Entry[]` | all transactions |
 | `ledger.categories` | `Category[]` | seeded from a default list on first read, then fully user-editable via Settings |
-| `ledger.budgets` | `{ [categoryId]: number }` | monthly budget per expense category; seeded with real starting values (see Budgets below), then user-editable |
+| `ledger.budgets` | `{ [year]: { [categoryId]: number } }` | monthly budget/target per expense or income category, scoped by year (see Budgets below) |
 | `ledger.pinHash` | `string` (SHA-256 hex) | gates app access |
 
 **Entry**
@@ -294,10 +294,14 @@ Two entirely separate export features:
 
 1. **CSV expense summary** (Calendar screen, ⬇ icon) — pick a From/To month
    range (dropdowns reach 10+ years out), and it shares (via `navigator.share`
-   with files, falling back to a direct download) a CSV of
-   `Month, Category, Amount (KRW)` — category-level monthly totals for
-   expenses only, matching what the Summary page shows. No individual
-   transactions, no income/transfers.
+   with files, falling back to a direct download) a CSV with columns
+   `Month, Category, Actual (KRW), Budget (KRW), Over/Under (KRW)`. Every
+   expense category gets a row for every month in the range (even at ₩0
+   actual, so budget context stays visible for untouched categories), using
+   that specific month's own year-scoped budget — not today's current
+   value. Over/Under is signed (positive = under budget, negative = over),
+   blank when no budget is set for that category. Expenses only — no
+   individual transactions, no income/transfers.
 2. **Full JSON backup** (Settings screen, bottom buttons) — exports/imports
    *everything*: entries, categories, budgets, and the PIN hash, via the
    same share-or-download pattern. Import requires an explicit confirm

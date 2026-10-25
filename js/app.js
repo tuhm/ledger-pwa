@@ -261,7 +261,7 @@
     const monthEntries = Storage.getEntriesForMonth(state.year, state.month);
 
     // Income / Cash Exp / Card Exp: whole-month totals, independent of selected day.
-    // Transfers (Investment / Card Payment) are excluded here — they aren't expenses.
+    // Transfers (Pension/Stocks/FX/Card Payment) are excluded here — they aren't expenses.
     let income = 0, cashExpense = 0, cardExpense = 0;
     monthEntries.forEach(e => {
       if (e.type === 'income') income += Number(e.amount);
@@ -374,7 +374,7 @@
       expenseTotal += Number(e.amount);
     });
 
-    // Transfer breakdown (Investment / Card Payment) — deducts balance.
+    // Transfer breakdown (Pension/Stocks/FX/Card Payment) — deducts balance.
     const transferByCat = {};
     let transferTotal = 0;
     entries.filter(e => e.type === 'transfer').forEach(e => {
