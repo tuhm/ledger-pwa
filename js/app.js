@@ -1077,7 +1077,7 @@
     state.editingEntryId = entry ? entry.id : null;
     el.modalTitle.textContent = entry ? 'Edit Entry' : 'New Entry';
     el.btnModalDelete.classList.toggle('hidden', !entry);
-    memoWordPool = buildMemoWordPool();
+    memoPhrasePool = buildMemoPhrasePool();
     hideMemoSuggestions();
 
     setModalType(entry ? entry.type : 'expense');
@@ -1117,31 +1117,21 @@
     state.editingEntryId = null;
   }
 
-  // ---------- Memo autocomplete (words seen in past memos only) ----------
-  let memoWordPool = [];
+  // ---------- Memo autocomplete (full past memo phrases, not individual
+  // words — so a memo like "star bucks" is suggested whole, not split into
+  // "star" and "bucks" as separate candidates) ----------
+  let memoPhrasePool = [];
 
-  function buildMemoWordPool() {
+  function buildMemoPhrasePool() {
     const seen = new Map(); // lowercase -> first-seen original casing
     Storage.getEntries().forEach(e => {
       if (!e.memo) return;
-      const stripped = e.memo.replace(/\s*\(\d+\/\d+\)$/, '');
-      stripped.split(/\s+/).forEach(word => {
-        const w = word.trim();
-        if (w.length < 2) return;
-        const key = w.toLowerCase();
-        if (!seen.has(key)) seen.set(key, w);
-      });
+      const stripped = e.memo.replace(/\s*\(\d+\/\d+\)$/, '').trim();
+      if (stripped.length < 2) return;
+      const key = stripped.toLowerCase();
+      if (!seen.has(key)) seen.set(key, stripped);
     });
     return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
-  }
-
-  function getCurrentWordBounds(input) {
-    const value = input.value;
-    const cursor = input.selectionStart == null ? value.length : input.selectionStart;
-    const before = value.slice(0, cursor);
-    const match = before.match(/(\S+)$/);
-    if (!match) return null;
-    return { start: cursor - match[1].length, end: cursor, word: match[1] };
   }
 
   let memoBlurTimer = null;
@@ -1152,29 +1142,26 @@
   }
 
   function renderMemoSuggestions() {
-    const bounds = getCurrentWordBounds(el.inputMemo);
-    if (!bounds || bounds.word.length === 0) { hideMemoSuggestions(); return; }
+    const typed = el.inputMemo.value;
+    if (typed.trim().length === 0) { hideMemoSuggestions(); return; }
 
-    const prefix = bounds.word.toLowerCase();
-    const matches = memoWordPool
-      .filter(w => w.toLowerCase().startsWith(prefix))
+    const prefix = typed.toLowerCase();
+    const matches = memoPhrasePool
+      .filter(phrase => phrase.toLowerCase().startsWith(prefix) && phrase.length > typed.length)
       .slice(0, 2);
 
     if (matches.length === 0) { hideMemoSuggestions(); return; }
 
     el.memoSuggestions.innerHTML = '';
-    matches.forEach(word => {
+    matches.forEach(phrase => {
       const li = document.createElement('li');
       li.className = 'memo-suggestion-item';
-      li.innerHTML = `<b>${word.slice(0, bounds.word.length)}</b>${word.slice(bounds.word.length)}`;
+      li.innerHTML = `<b>${phrase.slice(0, typed.length)}</b>${phrase.slice(typed.length)}`;
       // mousedown (not click) + preventDefault so the input never blurs first.
       li.addEventListener('mousedown', (ev) => {
         ev.preventDefault();
-        const value = el.inputMemo.value;
-        const newValue = value.slice(0, bounds.start) + word + ' ' + value.slice(bounds.end);
-        el.inputMemo.value = newValue;
-        const cursor = bounds.start + word.length + 1;
-        el.inputMemo.setSelectionRange(cursor, cursor);
+        el.inputMemo.value = phrase;
+        el.inputMemo.setSelectionRange(phrase.length, phrase.length);
         el.inputMemo.focus();
         hideMemoSuggestions();
       });

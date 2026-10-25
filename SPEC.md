@@ -228,13 +228,16 @@ creation:
 
 ### Memo autocomplete
 
-As you type in the Memo field, it suggests up to **2** words pulled only
-from memos already stored on-device (no external dictionary, nothing sent
-anywhere) — matched by prefix against whatever word you're currently
-typing (the text since the last space). A trailing `(n/total)` installment
-tag is stripped before words are extracted, so those don't pollute
-suggestions. Tapping a suggestion completes just that word (not the whole
-memo) and leaves the cursor ready to keep typing.
+As you type in the Memo field, it suggests up to **2** whole past memo
+phrases pulled only from memos already stored on-device (no external
+dictionary, nothing sent anywhere) — matched by prefix against the entire
+text typed so far (not per-word), so a previously-used multi-word memo
+like "star bucks" is suggested as one phrase rather than split into
+separate "star" and "bucks" candidates. A trailing `(n/total)` installment
+tag is stripped from stored memos before they're added to the candidate
+pool. Tapping a suggestion replaces the whole field with that full phrase.
+An exact match of a stored phrase shows no suggestion (nothing left to
+complete).
 
 ## Budgets
 
