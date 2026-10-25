@@ -446,16 +446,16 @@
   // An accumulated YEAR-TO-DATE snapshot, not a full calendar year and not
   // a sum of 12 monthly summaries. For ANY year selected, it always covers
   // Jan 1 through the last day of the REAL current month (e.g. viewing in
-  // October always sums Jan-Oct — 10 months — whether that's this year or
-  // a past one; a future month never contributes even in a past year).
-  //  Inflow:  Salary (monthly target x months-to-date) / Over-time (actual
-  //           - target) / Other Income (everything but salary, tax refund,
-  //           asset withdrawal, carried-over) / Tax Refund.
-  //  Outflow: Monthly Expense (sum of monthly-budget x months-to-date, for
-  //           categories that have one) / Over-budget (actual - that,
-  //           summed, signed) / each un-budgeted expense category on its
-  //           own / Pension (transfer).
-  //  Net:     Inflow total - Outflow total, shown at the top.
+  // October sums Jan-Oct — 10 months — whether that's this year or a past
+  // one), but only counts months that actually have at least one entry —
+  // an untouched month contributes neither actuals nor budget/target.
+  //  Inflow:  Salary (monthly target x contributing months) / Over-time
+  //           (actual - target) / Other Income (fixed sum of Interest +
+  //           Pocket Money only — everything else, incl. Tax Refund/Asset
+  //           Withdrawal/Carried Over, is excluded from the yearly view).
+  //  Outflow: Monthly Expense (sum of monthly-budget x contributing months,
+  //           for categories that have one) / Over-budget (actual - that,
+  //           summed, signed) / each un-budgeted expense category on its own.
   function monthsElapsedCount() {
     return new Date().getMonth() + 1; // 1-indexed; constant regardless of which year is being viewed
   }
@@ -474,16 +474,19 @@
     const monthEntries = Storage.getEntriesForMonth(year, month);
 
     const salaryTarget = Storage.getBudget('inc-salary', year);
-    const excludedIncomeIds = new Set(['inc-salary', 'inc-tax-refund', 'inc-asset-withdrawal', Storage.CARRY_OVER_CATEGORY_ID]);
-    let salaryActual = 0, taxRefundActual = 0, otherIncomeActual = 0;
+    // "Other Income" is a fixed sum of exactly these two categories — not a
+    // catch-all for every income category. Anything else (Asset Withdrawal,
+    // Carried Over, Tax Refund, or any other custom income category) simply
+    // isn't counted anywhere in the yearly view.
+    const otherIncomeIds = new Set(['inc-interest', 'inc-pocket-money']);
+    let salaryActual = 0, otherIncomeActual = 0;
     monthEntries.filter(e => e.type === 'income').forEach(e => {
       const amt = Number(e.amount);
       if (e.categoryId === 'inc-salary') salaryActual += amt;
-      else if (e.categoryId === 'inc-tax-refund') taxRefundActual += amt;
-      else if (!excludedIncomeIds.has(e.categoryId)) otherIncomeActual += amt;
+      else if (otherIncomeIds.has(e.categoryId)) otherIncomeActual += amt;
     });
     const overTime = salaryActual - salaryTarget;
-    const totalInflow = salaryTarget + overTime + otherIncomeActual + taxRefundActual;
+    const totalInflow = salaryTarget + overTime + otherIncomeActual;
 
     const expenseCats = categories.filter(c => c.type === 'expense');
     const actualByCat = {};
@@ -504,17 +507,12 @@
       }
     });
 
-    let pensionActual = 0;
-    monthEntries.filter(e => e.type === 'transfer' && e.categoryId === 'trf-pension').forEach(e => {
-      pensionActual += Number(e.amount);
-    });
-
     const unbudgetedTotal = unbudgetedIds.reduce((sum, id) => sum + actualByCat[id], 0);
-    const totalOutflow = monthlyExpenseTotal + overBudgetTotal + unbudgetedTotal + pensionActual;
+    const totalOutflow = monthlyExpenseTotal + overBudgetTotal + unbudgetedTotal;
 
     return {
-      salaryTarget, overTime, otherIncomeActual, taxRefundActual, totalInflow,
-      monthlyExpenseTotal, overBudgetTotal, actualByCat, unbudgetedIds, pensionActual, totalOutflow,
+      salaryTarget, overTime, otherIncomeActual, totalInflow,
+      monthlyExpenseTotal, overBudgetTotal, actualByCat, unbudgetedIds, totalOutflow,
     };
   }
 
@@ -524,32 +522,41 @@
     const categories = Storage.getCategories();
     const monthsCount = monthsElapsedCount();
     const thisMonth = monthsCount - 1; // 0-indexed, the cutoff month
-    el.summaryYearSubtitle.textContent = `Through ${MONTH_SHORT[thisMonth]} (${monthsCount} mo.)`;
 
-    const acc = computeYearlyFigures(year, thisMonth, categories); // placeholder, replaced below with real accumulation
-    // Accumulated figures sum every elapsed month individually (rather than
-    // a single multiply) so each category's own budget for a year that
+    // Only months with at least one entry (of any type) contribute to the
+    // accumulation — a month with nothing logged contributes neither its
+    // actuals NOR its budget/target (so e.g. starting to use the app mid-
+    // year doesn't drag the accumulated figures down with 9 months of pure
+    // budget deficit for months that were never tracked).
+    const contributingMonths = [];
+    for (let m = 0; m < monthsCount; m++) {
+      if (Storage.getEntriesForMonth(year, m).length > 0) contributingMonths.push(m);
+    }
+    el.summaryYearSubtitle.textContent = contributingMonths.length === monthsCount
+      ? `Through ${MONTH_SHORT[thisMonth]} (${monthsCount} mo.)`
+      : `Through ${MONTH_SHORT[thisMonth]} (${contributingMonths.length} of ${monthsCount} mo. have entries)`;
+
+    const thisMonthFigures = computeYearlyFigures(year, thisMonth, categories);
+
+    // Accumulated figures sum every CONTRIBUTING month individually (rather
+    // than a single multiply) so each category's own budget for a year that
     // changed mid-year is respected — though budgets don't vary by month
     // within a year today, this keeps the math correct if that ever changes.
-    const accumulated = { salaryTarget: 0, overTime: 0, otherIncomeActual: 0, taxRefundActual: 0, totalInflow: 0,
-      monthlyExpenseTotal: 0, overBudgetTotal: 0, actualByCat: {}, pensionActual: 0, totalOutflow: 0 };
+    const accumulated = { salaryTarget: 0, overTime: 0, otherIncomeActual: 0, totalInflow: 0,
+      monthlyExpenseTotal: 0, overBudgetTotal: 0, actualByCat: {}, totalOutflow: 0 };
     categories.filter(c => c.type === 'expense').forEach(c => { accumulated.actualByCat[c.id] = 0; });
-    for (let m = 0; m < monthsCount; m++) {
+    contributingMonths.forEach(m => {
       const f = computeYearlyFigures(year, m, categories);
       accumulated.salaryTarget += f.salaryTarget;
       accumulated.overTime += f.overTime;
       accumulated.otherIncomeActual += f.otherIncomeActual;
-      accumulated.taxRefundActual += f.taxRefundActual;
       accumulated.totalInflow += f.totalInflow;
       accumulated.monthlyExpenseTotal += f.monthlyExpenseTotal;
       accumulated.overBudgetTotal += f.overBudgetTotal;
-      accumulated.pensionActual += f.pensionActual;
       accumulated.totalOutflow += f.totalOutflow;
       Object.keys(f.actualByCat).forEach(id => { accumulated.actualByCat[id] = (accumulated.actualByCat[id] || 0) + f.actualByCat[id]; });
-    }
-    accumulated.unbudgetedIds = acc.unbudgetedIds; // same set regardless of month (budget presence doesn't vary by month)
-
-    const thisMonthFigures = acc;
+    });
+    accumulated.unbudgetedIds = thisMonthFigures.unbudgetedIds; // same set regardless of month (budget presence doesn't vary by month)
 
     // ---- Inflow ----
     el.yearlyInflowTotal.textContent = formatKRW(accumulated.totalInflow);
@@ -559,7 +566,6 @@
       ['💰 Salary', accumulated.salaryTarget, thisMonthFigures.salaryTarget],
       ['⏱️ Over-time', accumulated.overTime, thisMonthFigures.overTime],
       ['💵 Other Income', accumulated.otherIncomeActual, thisMonthFigures.otherIncomeActual],
-      ['🧾 Tax Refund', accumulated.taxRefundActual, thisMonthFigures.taxRefundActual],
     ].forEach(([name, amount, thisMonthAmount]) => {
       el.yearlyInflowList.appendChild(breakdownRow({
         name, amount, type: 'income',
@@ -592,13 +598,6 @@
           onClick: () => openCategoryDetail(id),
         }));
       });
-
-    const pensionCat = categoryById('trf-pension');
-    el.yearlyOutflowList.appendChild(breakdownRow({
-      name: pensionCat ? pensionCat.name : '👴 Pension', amount: accumulated.pensionActual, type: 'expense',
-      subText: `This month: ${formatSignedKRW(thisMonthFigures.pensionActual)}`,
-      onClick: () => openCategoryDetail('trf-pension'),
-    }));
   }
 
   function renderSummaryScreen() {
